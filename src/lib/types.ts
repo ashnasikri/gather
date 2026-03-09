@@ -21,6 +21,7 @@ export interface Encounter {
   summary: string;
   full_text?: string;
   energy?: number;  // 0-100
+  category?: 'work' | 'personal' | 'social';
   source?: 'voice' | 'text' | 'paste';
   raw_transcript?: string;
   created_at: string;

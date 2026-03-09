@@ -1,18 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { EncounterType } from "@/lib/types";
 
-interface FeedEncounter {
+export interface FeedEncounter {
   id: string;
   personName: string;
+  personId: string;
   type: EncounterType;
   date: string;
   time: string;
   summary: string;
+  energy?: number;
 }
 
 interface JournalFeedProps {
   encounters: FeedEncounter[];
+  onEdit: (enc: FeedEncounter) => void;
+  onDelete: (id: string) => void;
+  onPersonTap: (personId: string) => void;
 }
 
 const typeEmoji: Record<EncounterType, string> = {
@@ -23,8 +29,138 @@ const typeEmoji: Record<EncounterType, string> = {
   bumped: "👋",
 };
 
-export default function JournalFeed({ encounters }: JournalFeedProps) {
-  // Group encounters by date
+function EncounterRow({
+  enc,
+  onEdit,
+  onDelete,
+  onPersonTap,
+}: {
+  enc: FeedEncounter;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPersonTap: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleDelete = () => {
+    if (confirmDelete) {
+      onDelete();
+    } else {
+      setConfirmDelete(true);
+    }
+  };
+
+  const handleEdit = () => {
+    setMenuOpen(false);
+    setConfirmDelete(false);
+    onEdit();
+  };
+
+  return (
+    <div style={{ padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
+      {/* Name line */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
+        <span style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+          <span style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "16px", fontWeight: 400, color: "var(--text)" }}>
+            {typeEmoji[enc.type]}
+          </span>
+          <button
+            onClick={onPersonTap}
+            style={{
+              fontFamily: "var(--font-newsreader), Georgia, serif",
+              fontSize: "16px", fontWeight: 400, color: "var(--text)",
+              background: "none", border: "none", padding: 0, cursor: "pointer",
+            }}
+          >
+            {enc.personName}
+          </button>
+        </span>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0, marginLeft: "12px" }}>
+          <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11px", color: "var(--text-faint)" }}>
+            {enc.time}
+          </span>
+          {/* ··· toggle */}
+          <button
+            onClick={() => { setMenuOpen((v) => !v); setConfirmDelete(false); }}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: menuOpen ? "var(--text-soft)" : "var(--text-faint)",
+              fontSize: "14px", lineHeight: 1, padding: "2px 0",
+              letterSpacing: "1px",
+              transition: "color 0.15s",
+            }}
+          >
+            ···
+          </button>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div
+        style={{
+          paddingLeft: "21px",
+          fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+          fontSize: "13.5px", fontWeight: 300, color: "var(--text-quiet)", lineHeight: 1.45,
+        }}
+      >
+        {enc.summary}
+      </div>
+
+      {/* Inline action row */}
+      {menuOpen && (
+        <div
+          style={{
+            display: "flex", gap: "8px", paddingLeft: "21px", paddingTop: "10px",
+            animation: "fadeIn 0.15s ease",
+          }}
+        >
+          <button
+            onClick={handleEdit}
+            style={{
+              padding: "5px 14px", borderRadius: "14px",
+              backgroundColor: "var(--surface)", border: "1px solid var(--border-light)",
+              color: "var(--text-soft)", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+              fontSize: "12px", fontWeight: 300, cursor: "pointer",
+            }}
+          >
+            ✏️ edit
+          </button>
+          <button
+            onClick={handleDelete}
+            style={{
+              padding: "5px 14px", borderRadius: "14px",
+              backgroundColor: confirmDelete ? "rgba(196,114,114,0.12)" : "var(--surface)",
+              border: `1px solid ${confirmDelete ? "rgba(196,114,114,0.3)" : "var(--border-light)"}`,
+              color: confirmDelete ? "var(--rose)" : "var(--text-soft)",
+              fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+              fontSize: "12px", fontWeight: 300, cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {confirmDelete ? "confirm delete" : "🗑️ delete"}
+          </button>
+          {confirmDelete && (
+            <button
+              onClick={() => { setConfirmDelete(false); setMenuOpen(false); }}
+              style={{
+                padding: "5px 14px", borderRadius: "14px",
+                backgroundColor: "var(--surface)", border: "1px solid var(--border-light)",
+                color: "var(--text-faint)", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                fontSize: "12px", fontWeight: 300, cursor: "pointer",
+              }}
+            >
+              cancel
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function JournalFeed({ encounters, onEdit, onDelete, onPersonTap }: JournalFeedProps) {
   const grouped = encounters.reduce<Record<string, FeedEncounter[]>>((acc, enc) => {
     if (!acc[enc.date]) acc[enc.date] = [];
     acc[enc.date].push(enc);
@@ -35,15 +171,11 @@ export default function JournalFeed({ encounters }: JournalFeedProps) {
 
   return (
     <div style={{ padding: "0 20px 120px" }}>
-      {/* Section header */}
       <h2
         style={{
           fontFamily: "var(--font-newsreader), Georgia, serif",
-          fontSize: "18px",
-          fontWeight: 400,
-          color: "var(--text)",
-          margin: "0 0 20px",
-          padding: "0",
+          fontSize: "18px", fontWeight: 400, color: "var(--text)",
+          margin: "0 0 20px", padding: 0,
         }}
       >
         recent encounters
@@ -51,96 +183,33 @@ export default function JournalFeed({ encounters }: JournalFeedProps) {
 
       {dateGroups.map(([date, group]) => (
         <div key={date} style={{ marginBottom: "20px" }}>
-          {/* Day label */}
           <div
             style={{
               fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-              fontSize: "11px",
-              fontWeight: 400,
-              color: "var(--text-faint)",
-              letterSpacing: "1.2px",
-              textTransform: "uppercase",
-              marginBottom: "4px",
+              fontSize: "11px", fontWeight: 400, color: "var(--text-faint)",
+              letterSpacing: "1.2px", textTransform: "uppercase", marginBottom: "4px",
             }}
           >
             {date}
           </div>
-
-          {/* Encounters for this day */}
           {group.map((enc) => (
-            <div
+            <EncounterRow
               key={enc.id}
-              style={{
-                padding: "12px 0",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              {/* Name line */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  marginBottom: "4px",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-newsreader), Georgia, serif",
-                    fontSize: "16px",
-                    fontWeight: 400,
-                    color: "var(--text)",
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: "6px",
-                  }}
-                >
-                  <span>{typeEmoji[enc.type]}</span>
-                  <span>{enc.personName}</span>
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-                    fontSize: "11px",
-                    color: "var(--text-faint)",
-                    flexShrink: 0,
-                    marginLeft: "12px",
-                  }}
-                >
-                  {enc.time}
-                </span>
-              </div>
-
-              {/* Summary */}
-              <div
-                style={{
-                  paddingLeft: "21px",
-                  fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-                  fontSize: "13.5px",
-                  fontWeight: 300,
-                  color: "var(--text-quiet)",
-                  lineHeight: 1.45,
-                }}
-              >
-                {enc.summary}
-              </div>
-            </div>
+              enc={enc}
+              onEdit={() => onEdit(enc)}
+              onDelete={() => onDelete(enc.id)}
+              onPersonTap={() => onPersonTap(enc.personId)}
+            />
           ))}
         </div>
       ))}
 
-      {/* Bottom quote */}
       <p
         style={{
           fontFamily: "var(--font-newsreader), Georgia, serif",
-          fontStyle: "italic",
-          fontSize: "13.5px",
-          fontWeight: 300,
-          color: "var(--text-faint)",
-          textAlign: "center",
-          marginTop: "32px",
-          lineHeight: 1.6,
-          padding: "0 8px",
+          fontStyle: "italic", fontSize: "13.5px", fontWeight: 300,
+          color: "var(--text-faint)", textAlign: "center",
+          marginTop: "32px", lineHeight: 1.6, padding: "0 8px",
         }}
       >
         the people you gather around become the story of your life

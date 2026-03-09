@@ -8,11 +8,11 @@ interface BonfireCharacterProps {
 }
 
 const moodSprite: Record<BuddyMood, string> = {
-  idle: "/sprites/idle.png",
-  listening: "/sprites/listening.png",
-  happy: "/sprites/happy.png",
-  thinking: "/sprites/thinking.png",
-  sleepy: "/sprites/sleepy.png",
+  idle: "/sprites/idle-removebg-preview.png",
+  listening: "/sprites/listening-removebg-preview.png",
+  happy: "/sprites/happy-removebg-preview.png",
+  thinking: "/sprites/thinking-removebg-preview.png",
+  sleepy: "/sprites/sleepy-removebg-preview.png",
 };
 
 const moodSpeech: Record<BuddyMood, { main: string; sub: string }> = {
@@ -69,9 +69,9 @@ export default function BonfireCharacter({ mood = "idle" }: BonfireCharacterProp
           <Image
             src={moodSprite[mood]}
             alt={`Bonfire — ${mood}`}
-            width={180}
-            height={180}
-            style={{ objectFit: "contain", height: "180px", width: "auto" }}
+            width={319}
+            height={782}
+            style={{ height: "160px", width: "auto", mixBlendMode: "multiply" }}
             priority
           />
         </div>
