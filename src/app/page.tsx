@@ -67,20 +67,14 @@ export default function HomePage() {
 
           <BonfireCharacter mood={mood} />
 
-          {/* Freeze kit link */}
-          <div style={{ textAlign: "center", padding: "2px 0 6px" }}>
-            <Link
-              href="/freeze"
-              style={{
-                fontFamily: "var(--font-newsreader), Georgia, serif",
-                fontSize: "14px",
-                fontWeight: 300,
-                fontStyle: "italic",
-                color: "var(--text-faint)",
-                textDecoration: "none",
-              }}
-            >
-              when you&apos;re frozen, ashna
+          {/* Escape hatch links */}
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", padding: "2px 0 6px" }}>
+            <Link href="/freeze" style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12.5px", fontWeight: 300, color: "var(--text-faint)", textDecoration: "none" }}>
+              frozen? can&apos;t reply?
+            </Link>
+            <span style={{ color: "var(--text-faint)", fontSize: "12.5px", lineHeight: 1 }}>·</span>
+            <Link href="/boundaries" style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12.5px", fontWeight: 300, color: "var(--text-faint)", textDecoration: "none" }}>
+              about to say yes?
             </Link>
           </div>
 
