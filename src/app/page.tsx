@@ -80,7 +80,7 @@ export default function HomePage() {
                 textDecoration: "none",
               }}
             >
-              🕯️ gone quiet on someone?
+              when you&apos;re frozen, ashna
             </Link>
           </div>
 
