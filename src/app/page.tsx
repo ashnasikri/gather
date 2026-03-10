@@ -113,7 +113,7 @@ export default function HomePage() {
                       lineHeight: 1.5,
                     }}
                   >
-                    pre-written messages for when you&apos;ve gone quiet
+                    for when you&apos;re frozen, ashna
                   </p>
                 </div>
 
