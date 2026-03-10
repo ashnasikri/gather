@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import BonfireCharacter from "@/components/BonfireCharacter";
 import JournalFeed, { FeedEncounter } from "@/components/JournalFeed";
 import PasswordGate from "@/components/PasswordGate";
@@ -65,6 +66,24 @@ export default function HomePage() {
           </header>
 
           <BonfireCharacter mood={mood} />
+
+          {/* Quiet escape hatch → freeze kit */}
+          <div style={{ textAlign: "center", paddingTop: "4px", paddingBottom: "2px" }}>
+            <Link
+              href="/freeze"
+              style={{
+                fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                fontSize: "12.5px",
+                fontWeight: 300,
+                color: "var(--text-faint)",
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+                textDecorationColor: "rgba(74,68,62,0.4)",
+              }}
+            >
+              frozen? can&apos;t reply?
+            </Link>
+          </div>
 
           <div style={{ paddingTop: "28px" }}>
             {!loading && encounters.length === 0 ? (
