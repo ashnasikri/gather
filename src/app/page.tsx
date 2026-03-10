@@ -67,68 +67,20 @@ export default function HomePage() {
 
           <BonfireCharacter mood={mood} />
 
-          {/* Freeze kit section */}
-          <div style={{ padding: "16px 16px 4px" }}>
+          {/* Freeze kit link */}
+          <div style={{ textAlign: "center", padding: "2px 0 6px" }}>
             <Link
               href="/freeze"
-              style={{ textDecoration: "none", display: "block" }}
+              style={{
+                fontFamily: "var(--font-newsreader), Georgia, serif",
+                fontSize: "14px",
+                fontWeight: 300,
+                fontStyle: "italic",
+                color: "var(--text-faint)",
+                textDecoration: "none",
+              }}
             >
-              <div
-                style={{
-                  backgroundColor: "var(--surface)",
-                  borderRadius: "16px",
-                  padding: "18px 20px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "16px",
-                  border: "1px solid var(--border-light)",
-                }}
-              >
-                {/* Icon */}
-                <div style={{ fontSize: "26px", lineHeight: 1, opacity: 0.7, flexShrink: 0 }}>
-                  🕯️
-                </div>
-
-                {/* Text */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p
-                    style={{
-                      fontFamily: "var(--font-newsreader), Georgia, serif",
-                      fontSize: "16px",
-                      fontWeight: 400,
-                      color: "var(--text-soft)",
-                      margin: "0 0 3px",
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    gone quiet on someone?
-                  </p>
-                  <p
-                    style={{
-                      fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-                      fontSize: "12px",
-                      fontWeight: 300,
-                      color: "var(--text-faint)",
-                      margin: 0,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    for when you&apos;re frozen, ashna
-                  </p>
-                </div>
-
-                {/* Arrow */}
-                <div
-                  style={{
-                    color: "var(--text-faint)",
-                    fontSize: "16px",
-                    flexShrink: 0,
-                    opacity: 0.5,
-                  }}
-                >
-                  →
-                </div>
-              </div>
+              🕯️ gone quiet on someone?
             </Link>
           </div>
 
