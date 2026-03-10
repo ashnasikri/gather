@@ -67,21 +67,68 @@ export default function HomePage() {
 
           <BonfireCharacter mood={mood} />
 
-          {/* Quiet escape hatch → freeze kit */}
-          <div style={{ textAlign: "center", paddingTop: "4px", paddingBottom: "2px" }}>
+          {/* Freeze kit section */}
+          <div style={{ padding: "16px 16px 4px" }}>
             <Link
               href="/freeze"
-              style={{
-                fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-                fontSize: "12.5px",
-                fontWeight: 300,
-                color: "var(--text-faint)",
-                textDecoration: "underline",
-                textUnderlineOffset: "3px",
-                textDecorationColor: "rgba(74,68,62,0.4)",
-              }}
+              style={{ textDecoration: "none", display: "block" }}
             >
-              frozen? can&apos;t reply?
+              <div
+                style={{
+                  backgroundColor: "var(--surface)",
+                  borderRadius: "16px",
+                  padding: "18px 20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "16px",
+                  border: "1px solid var(--border-light)",
+                }}
+              >
+                {/* Icon */}
+                <div style={{ fontSize: "26px", lineHeight: 1, opacity: 0.7, flexShrink: 0 }}>
+                  🕯️
+                </div>
+
+                {/* Text */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-newsreader), Georgia, serif",
+                      fontSize: "16px",
+                      fontWeight: 400,
+                      color: "var(--text-soft)",
+                      margin: "0 0 3px",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    frozen? can&apos;t reply?
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                      fontSize: "12px",
+                      fontWeight: 300,
+                      color: "var(--text-faint)",
+                      margin: 0,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    pre-written messages for when you&apos;ve gone quiet
+                  </p>
+                </div>
+
+                {/* Arrow */}
+                <div
+                  style={{
+                    color: "var(--text-faint)",
+                    fontSize: "16px",
+                    flexShrink: 0,
+                    opacity: 0.5,
+                  }}
+                >
+                  →
+                </div>
+              </div>
             </Link>
           </div>
 
