@@ -101,7 +101,7 @@ export default function HomePage() {
                       lineHeight: 1.3,
                     }}
                   >
-                    frozen? can&apos;t reply?
+                    gone quiet on someone?
                   </p>
                   <p
                     style={{
@@ -113,7 +113,7 @@ export default function HomePage() {
                       lineHeight: 1.5,
                     }}
                   >
-                    for when you&apos;re frozen, ashna
+                    pre-written messages for when you&apos;ve gone quiet
                   </p>
                 </div>
 
