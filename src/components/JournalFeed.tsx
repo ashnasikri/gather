@@ -12,12 +12,15 @@ interface Commitment {
   personId: string | null;
 }
 
+const PREVIEW_COUNT = 2;
+
 function CommitmentsBlock({ onPersonTap }: { onPersonTap: (id: string) => void }) {
   const [items, setItems] = useState<Commitment[]>([]);
   const [checking, setChecking] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState("");
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -69,7 +72,7 @@ function CommitmentsBlock({ onPersonTap }: { onPersonTap: (id: string) => void }
         {!adding && <button onClick={() => setAdding(true)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "var(--text-faint)", padding: 0 }}>+ add</button>}
       </div>
 
-      {items.map((item) => (
+      {(expanded ? items : items.slice(0, PREVIEW_COUNT)).map((item) => (
         <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "7px 0", borderBottom: "1px solid var(--border)", opacity: checking.has(item.id) ? 0 : 1, transition: "opacity 0.35s ease" }}>
           <button
             onClick={() => check(item.id)}
@@ -85,6 +88,16 @@ function CommitmentsBlock({ onPersonTap }: { onPersonTap: (id: string) => void }
           </div>
         </div>
       ))}
+
+      {/* Show more / less */}
+      {items.length > PREVIEW_COUNT && !adding && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "var(--text-faint)", padding: "6px 0 0", display: "block" }}
+        >
+          {expanded ? "show less" : `+${items.length - PREVIEW_COUNT} more`}
+        </button>
+      )}
 
       {adding && (
         <div style={{ display: "flex", gap: "8px", paddingTop: "8px", alignItems: "center" }}>
