@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   console.log('[POST /api/encounters] body:', JSON.stringify(body))
 
-  const { personName, city, type, summary, fullText, energy, category, source, rawTranscript, actions, links } = body
+  const { personName, city, date, type, summary, fullText, energy, category, source, rawTranscript, actions, links } = body
 
   if (!personName || !type || !summary) {
     console.log('[POST /api/encounters] validation failed — missing fields:', { personName, type, summary })
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   // Create encounter
   const now = new Date()
-  const dateStr = now.toISOString().slice(0, 10) // YYYY-MM-DD
+  const dateStr = date ?? now.toISOString().slice(0, 10) // use provided date or today
   const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 
   const { data: encounter, error: encErr } = await supabase

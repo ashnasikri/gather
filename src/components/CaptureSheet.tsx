@@ -64,6 +64,7 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
   const [personName, setPersonName] = useState("");
   const [summary, setSummary] = useState("");
   const [city, setCity] = useState("");
+  const [encounterDate, setEncounterDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [encounterType, setEncounterType] = useState<EncounterType>("coffee");
   const [category, setCategory] = useState<Category>("personal");
   const [energy, setEnergy] = useState(50);
@@ -85,6 +86,7 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
         setPersonName("");
         setSummary("");
         setCity("");
+        setEncounterDate(new Date().toISOString().slice(0, 10));
         setEncounterType("coffee");
         setCategory("personal");
         setEnergy(50);
@@ -160,6 +162,7 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
         body: JSON.stringify({
           personName: personName.trim(),
           city: city.trim() || undefined,
+          date: encounterDate,
           type: encounterType,
           category,
           summary: summary.trim(),
@@ -392,6 +395,22 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
                   onChange={(e) => setPersonName(e.target.value)}
                   placeholder="their name"
                   style={{ ...inputBase, fontSize: "18px", fontWeight: 400, padding: "12px 14px" }}
+                />
+              </div>
+
+              {/* Date */}
+              <div>
+                <label style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11px", color: "var(--text-faint)", letterSpacing: "0.8px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                  when
+                </label>
+                <style>{`.cs-date::-webkit-calendar-picker-indicator { filter: invert(0.4); cursor: pointer; }`}</style>
+                <input
+                  type="date"
+                  value={encounterDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setEncounterDate(e.target.value)}
+                  className="cs-date"
+                  style={{ ...inputBase, fontSize: "13.5px", padding: "12px 14px", colorScheme: "dark" }}
                 />
               </div>
 
