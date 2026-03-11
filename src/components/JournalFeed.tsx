@@ -12,6 +12,7 @@ export interface FeedEncounter {
   time: string;
   summary: string;
   energy?: number;
+  city?: string | null;
 }
 
 interface JournalFeedProps {
@@ -108,6 +109,19 @@ function EncounterRow({
         {enc.summary}
       </div>
 
+      {/* City tag */}
+      {enc.city && (
+        <div style={{ paddingLeft: "21px", marginTop: "6px" }}>
+          <span style={{
+            fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+            fontSize: "11px", fontWeight: 300, color: "var(--text-faint)",
+            letterSpacing: "0.3px",
+          }}>
+            📍 {enc.city}
+          </span>
+        </div>
+      )}
+
       {/* Inline action row */}
       {menuOpen && (
         <div
@@ -161,7 +175,18 @@ function EncounterRow({
 }
 
 export default function JournalFeed({ encounters, onEdit, onDelete, onPersonTap }: JournalFeedProps) {
-  const grouped = encounters.reduce<Record<string, FeedEncounter[]>>((acc, enc) => {
+  const [cityFilter, setCityFilter] = useState<string | null>(null);
+
+  // Unique cities across all encounters, preserving first-seen order
+  const cities = Array.from(
+    new Set(encounters.map((e) => e.city).filter((c): c is string => !!c))
+  );
+
+  const visible = cityFilter
+    ? encounters.filter((e) => e.city === cityFilter)
+    : encounters;
+
+  const grouped = visible.reduce<Record<string, FeedEncounter[]>>((acc, enc) => {
     if (!acc[enc.date]) acc[enc.date] = [];
     acc[enc.date].push(enc);
     return acc;
@@ -175,11 +200,51 @@ export default function JournalFeed({ encounters, onEdit, onDelete, onPersonTap 
         style={{
           fontFamily: "var(--font-newsreader), Georgia, serif",
           fontSize: "18px", fontWeight: 400, color: "var(--text)",
-          margin: "0 0 20px", padding: 0,
+          margin: "0 0 14px", padding: 0,
         }}
       >
         recent encounters
       </h2>
+
+      {/* City filter chips — only shown when there are cities to filter by */}
+      {cities.length > 0 && (
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px" }}>
+          {cityFilter && (
+            <button
+              onClick={() => setCityFilter(null)}
+              style={{
+                padding: "5px 12px", borderRadius: "20px", cursor: "pointer",
+                backgroundColor: "var(--ember-soft)",
+                border: "1px solid rgba(224,120,64,0.25)",
+                fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                fontSize: "11.5px", fontWeight: 300, color: "var(--ember)",
+              }}
+            >
+              ✕ all
+            </button>
+          )}
+          {cities.map((city) => {
+            const active = cityFilter === city;
+            return (
+              <button
+                key={city}
+                onClick={() => setCityFilter(active ? null : city)}
+                style={{
+                  padding: "5px 12px", borderRadius: "20px", cursor: "pointer",
+                  backgroundColor: active ? "var(--ember-soft)" : "var(--surface)",
+                  border: `1px solid ${active ? "rgba(224,120,64,0.25)" : "var(--border)"}`,
+                  fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                  fontSize: "11.5px", fontWeight: active ? 400 : 300,
+                  color: active ? "var(--ember)" : "var(--text-faint)",
+                  transition: "all 0.15s",
+                }}
+              >
+                📍 {city}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {dateGroups.map(([date, group]) => (
         <div key={date} style={{ marginBottom: "20px" }}>

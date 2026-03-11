@@ -5,7 +5,7 @@ import { formatRelativeDate, formatTime } from '@/lib/dateUtils'
 export async function GET() {
   const { data: encounters, error } = await supabase
     .from('encounters')
-    .select('*, people(name)')
+    .select('*, people(name, city)')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -15,13 +15,14 @@ export async function GET() {
 
   const shaped = (encounters ?? []).map((enc) => ({
     id: enc.id,
-    personName: (enc.people as { name: string } | null)?.name ?? enc.person_id,
+    personName: (enc.people as { name: string; city: string | null } | null)?.name ?? enc.person_id,
     personId: enc.person_id,
     type: enc.type,
     date: enc.date ? formatRelativeDate(enc.date) : formatRelativeDate(enc.created_at),
     time: enc.time ?? formatTime(enc.created_at),
     summary: enc.summary,
     energy: enc.energy,
+    city: (enc.people as { name: string; city: string | null } | null)?.city ?? null,
     createdAt: enc.created_at,
   }))
 
