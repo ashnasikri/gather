@@ -132,9 +132,11 @@ export default function HomePage() {
         <EditSheet
           open={editTarget !== null}
           encounterId={editTarget?.id ?? ""}
+          personId={editTarget?.personId ?? ""}
           initialSummary={editTarget?.summary ?? ""}
           initialType={editTarget?.type ?? "coffee"}
           initialEnergy={editTarget?.energy}
+          initialCity={editTarget?.city}
           onClose={() => setEditTarget(null)}
           onSaved={() => { setEditTarget(null); fetchEncounters(); }}
         />

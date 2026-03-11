@@ -6,9 +6,11 @@ import { EncounterType } from "@/lib/types";
 interface EditSheetProps {
   open: boolean;
   encounterId: string;
+  personId: string;
   initialSummary: string;
   initialType: EncounterType;
   initialEnergy?: number;
+  initialCity?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -37,12 +39,13 @@ const energyColor = (v: number) => {
 };
 
 export default function EditSheet({
-  open, encounterId, initialSummary, initialType, initialEnergy,
+  open, encounterId, personId, initialSummary, initialType, initialEnergy, initialCity,
   onClose, onSaved,
 }: EditSheetProps) {
   const [summary, setSummary] = useState(initialSummary);
   const [type, setType] = useState<EncounterType>(initialType);
   const [energy, setEnergy] = useState(initialEnergy ?? 50);
+  const [city, setCity] = useState(initialCity ?? "");
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -52,9 +55,10 @@ export default function EditSheet({
       setSummary(initialSummary);
       setType(initialType);
       setEnergy(initialEnergy ?? 50);
+      setCity(initialCity ?? "");
       setTimeout(() => textareaRef.current?.focus(), 120);
     }
-  }, [open, initialSummary, initialType, initialEnergy]);
+  }, [open, initialSummary, initialType, initialEnergy, initialCity]);
 
   const handleSave = async () => {
     if (!summary.trim()) return;
@@ -63,7 +67,7 @@ export default function EditSheet({
       const res = await fetch(`/api/encounters/${encounterId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ summary: summary.trim(), type, energy }),
+        body: JSON.stringify({ summary: summary.trim(), type, energy, city: city.trim(), personId }),
       });
       if (res.ok) {
         onSaved();
@@ -162,6 +166,15 @@ export default function EditSheet({
               </button>
             ))}
           </div>
+
+          {/* City */}
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="📍 city (optional)"
+            style={{ ...inputStyle, fontSize: "13px", padding: "10px 14px" }}
+          />
 
           {/* Energy */}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

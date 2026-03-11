@@ -12,7 +12,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const body = await req.json()
-  const { summary, type, energy } = body
+  const { summary, type, energy, city, personId } = body
 
   const updates: Record<string, unknown> = {}
   if (summary !== undefined) updates.summary = summary
@@ -30,5 +30,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     console.error('[PATCH /api/encounters/[id]]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // Update city on the person record if provided
+  if (personId && city !== undefined) {
+    await supabase.from('people').update({ city: city || null }).eq('id', personId)
+  }
+
   return NextResponse.json(data)
 }
