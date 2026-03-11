@@ -8,6 +8,7 @@ import PasswordGate from "@/components/PasswordGate";
 import CaptureSheet from "@/components/CaptureSheet";
 import EditSheet from "@/components/EditSheet";
 import PersonProfile from "@/components/PersonProfile";
+import CommitmentsSection from "@/components/CommitmentsSection";
 import { BuddyMood } from "@/lib/types";
 
 export default function HomePage() {
@@ -78,7 +79,11 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div style={{ paddingTop: "28px" }}>
+          <CommitmentsSection onPersonTap={setProfilePersonId} />
+
+          <div style={{ height: "1px", backgroundColor: "var(--border)", margin: "20px 20px 0" }} />
+
+          <div style={{ paddingTop: "20px" }}>
             {!loading && encounters.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 24px" }}>
                 <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "17px", fontWeight: 300, color: "var(--text-soft)", margin: "0 0 8px" }}>
