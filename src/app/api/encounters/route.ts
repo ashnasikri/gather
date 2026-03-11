@@ -53,11 +53,15 @@ export async function POST(req: NextRequest) {
     console.error('[POST /api/encounters] find person error:', findErr)
   }
 
+  const now = new Date()
+  const dateStr = date ?? now.toISOString().slice(0, 10)
+  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+
   let person = existing
   if (!person) {
     const { data: created, error: createErr } = await supabase
       .from('people')
-      .insert({ name: personName.trim(), city: city ?? null })
+      .insert({ name: personName.trim(), city: city ?? null, first_met_date: dateStr })
       .select()
       .single()
     console.log('[POST /api/encounters] create person result:', { created, createErr })
@@ -68,9 +72,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Create encounter
-  const now = new Date()
-  const dateStr = date ?? now.toISOString().slice(0, 10) // use provided date or today
-  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 
   const { data: encounter, error: encErr } = await supabase
     .from('encounters')

@@ -46,6 +46,7 @@ interface PersonData {
     city?: string;
     context?: string;
     first_met_date?: string;
+    next_meeting_date?: string;
     created_at: string;
   };
   encounters: Encounter[];
@@ -94,6 +95,12 @@ export default function PersonProfile({ personId, open, onClose }: PersonProfile
   const [cityValue, setCityValue] = useState("");
   const cityInputRef = useRef<HTMLInputElement>(null);
 
+  // Date editing
+  const [editingFirstMet, setEditingFirstMet] = useState(false);
+  const [firstMetValue, setFirstMetValue] = useState("");
+  const [editingNextMeeting, setEditingNextMeeting] = useState(false);
+  const [nextMeetingValue, setNextMeetingValue] = useState("");
+
   // Note adding
   const [noteInput, setNoteInput] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -123,6 +130,8 @@ export default function PersonProfile({ personId, open, onClose }: PersonProfile
         setData(d);
         setNameValue(d.person.name);
         setCityValue(d.person.city ?? "");
+        setFirstMetValue(d.person.first_met_date ?? "");
+        setNextMeetingValue(d.person.next_meeting_date ?? "");
         setActions(d.actions);
       })
       .finally(() => setLoading(false));
@@ -154,6 +163,28 @@ export default function PersonProfile({ personId, open, onClose }: PersonProfile
       body: JSON.stringify({ city: trimmed || null }),
     });
     setData((prev) => prev ? { ...prev, person: { ...prev.person, city: trimmed || undefined } } : prev);
+  };
+
+  const saveFirstMet = async () => {
+    setEditingFirstMet(false);
+    if (!data) return;
+    await fetch(`/api/people/${data.person.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ first_met_date: firstMetValue || null }),
+    });
+    setData((prev) => prev ? { ...prev, person: { ...prev.person, first_met_date: firstMetValue || undefined } } : prev);
+  };
+
+  const saveNextMeeting = async () => {
+    setEditingNextMeeting(false);
+    if (!data) return;
+    await fetch(`/api/people/${data.person.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ next_meeting_date: nextMeetingValue || null }),
+    });
+    setData((prev) => prev ? { ...prev, person: { ...prev.person, next_meeting_date: nextMeetingValue || undefined } } : prev);
   };
 
   const saveName = async () => {
@@ -344,17 +375,65 @@ export default function PersonProfile({ personId, open, onClose }: PersonProfile
                     {metaDot}
                   </>
                 )}
-                {data.person.first_met_date && (
+                {/* First met — editable */}
+                {editingFirstMet ? (
                   <>
-                    <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "var(--text-quiet)" }}>
-                      first met {new Date(data.person.first_met_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    <style>{`.pp-date::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:pointer}`}</style>
+                    <input
+                      type="date"
+                      value={firstMetValue}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setFirstMetValue(e.target.value)}
+                      onBlur={saveFirstMet}
+                      autoFocus
+                      className="pp-date"
+                      style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "var(--text)", background: "none", border: "none", borderBottom: "1px solid var(--ember)", outline: "none", padding: "0 0 1px", colorScheme: "dark" }}
+                    />
+                    {metaDot}
+                  </>
+                ) : (
+                  <>
+                    <span
+                      onClick={() => setEditingFirstMet(true)}
+                      style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: data.person.first_met_date ? "var(--text-quiet)" : "var(--text-faint)", cursor: "text", fontStyle: data.person.first_met_date ? "normal" : "italic" }}
+                    >
+                      {data.person.first_met_date
+                        ? `first met ${new Date(data.person.first_met_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                        : "add first met date"}
                     </span>
                     {metaDot}
                   </>
                 )}
+
                 <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "var(--text-quiet)" }}>
                   {data.encounters.length} {data.encounters.length === 1 ? "encounter" : "encounters"}
                 </span>
+
+                {/* Next meeting */}
+                {metaDot}
+                {editingNextMeeting ? (
+                  <>
+                    <style>{`.pp-date::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:pointer}`}</style>
+                    <input
+                      type="date"
+                      value={nextMeetingValue}
+                      onChange={(e) => setNextMeetingValue(e.target.value)}
+                      onBlur={saveNextMeeting}
+                      autoFocus
+                      className="pp-date"
+                      style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "var(--text)", background: "none", border: "none", borderBottom: "1px solid var(--sage)", outline: "none", padding: "0 0 1px", colorScheme: "dark" }}
+                    />
+                  </>
+                ) : (
+                  <span
+                    onClick={() => setEditingNextMeeting(true)}
+                    style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: data.person.next_meeting_date ? "var(--sage)" : "var(--text-faint)", cursor: "text", fontStyle: data.person.next_meeting_date ? "normal" : "italic" }}
+                  >
+                    {data.person.next_meeting_date
+                      ? `next ${new Date(data.person.next_meeting_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                      : "plan next meeting"}
+                  </span>
+                )}
               </div>
 
               {/* Context box */}

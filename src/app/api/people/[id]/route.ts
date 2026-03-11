@@ -50,6 +50,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.name !== undefined) updates.name = body.name
   if (body.city !== undefined) updates.city = body.city
   if (body.context !== undefined) updates.context = body.context
+  if (body.first_met_date !== undefined) updates.first_met_date = body.first_met_date
+  if (body.next_meeting_date !== undefined) updates.next_meeting_date = body.next_meeting_date
 
   const { data, error } = await supabase
     .from('people')
