@@ -8,7 +8,7 @@ import PasswordGate from "@/components/PasswordGate";
 import CaptureSheet from "@/components/CaptureSheet";
 import EditSheet from "@/components/EditSheet";
 import PersonProfile from "@/components/PersonProfile";
-import CommitmentsSection from "@/components/CommitmentsSection";
+import BottomNav from "@/components/BottomNav";
 import { BuddyMood } from "@/lib/types";
 
 export default function HomePage() {
@@ -34,6 +34,20 @@ export default function HomePage() {
 
   useEffect(() => { fetchEncounters(); }, [fetchEncounters]);
 
+  // Listen for BottomNav fire sheet → "i met someone" signal
+  useEffect(() => {
+    const handler = () => {
+      if (sessionStorage.getItem("gather_open_capture") === "1") {
+        sessionStorage.removeItem("gather_open_capture");
+        setSheetOpen(true);
+      }
+    };
+    window.addEventListener("gather_open_capture", handler);
+    // Also check on mount in case we navigated here from another page
+    handler();
+    return () => window.removeEventListener("gather_open_capture", handler);
+  }, []);
+
   const handleDelete = async (id: string) => {
     // Optimistic removal
     setEncounters((prev) => prev.filter((e) => e.id !== id));
@@ -55,7 +69,7 @@ export default function HomePage() {
           minHeight: "100dvh", backgroundColor: "var(--bg)", position: "relative",
         }}
       >
-        <div style={{ overflowY: "auto", minHeight: "100dvh" }}>
+        <div style={{ overflowY: "auto", minHeight: "100dvh", paddingBottom: "120px" }}>
           {/* Header */}
           <header style={{ textAlign: "center", paddingTop: "52px", paddingBottom: "4px" }}>
             <h1 style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "27px", fontWeight: 300, color: "var(--text)", margin: "0 0 6px", letterSpacing: "-0.2px" }}>
@@ -78,8 +92,6 @@ export default function HomePage() {
               about to say yes?
             </Link>
           </div>
-
-          <CommitmentsSection onPersonTap={setProfilePersonId} />
 
           <div style={{ height: "1px", backgroundColor: "var(--border)", margin: "20px 20px 0" }} />
 
@@ -104,22 +116,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* FAB */}
-        <div style={{ position: "fixed", bottom: "32px", left: "50%", transform: "translateX(-50%)", zIndex: 50 }}>
-          <button
-            onClick={() => setSheetOpen(true)}
-            style={{
-              height: "46px", padding: "0 22px", borderRadius: "23px",
-              backgroundColor: "var(--ember)", border: "none", cursor: "pointer",
-              fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-              fontSize: "13.5px", fontWeight: 400, color: "white",
-              boxShadow: "0 3px 18px rgba(224,120,64,0.3)",
-              whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "6px",
-            }}
-          >
-            🔥 sit by the fire
-          </button>
-        </div>
+        <BottomNav onOpenCapture={() => setSheetOpen(true)} />
 
         <CaptureSheet
           open={sheetOpen}
