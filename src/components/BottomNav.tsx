@@ -203,6 +203,8 @@ export default function BottomNav({ onOpenCapture }: BottomNavProps) {
                 sub="capture a moment"
                 onClick={() => {
                   setFireSheetOpen(false);
+                  sessionStorage.setItem("gather_open_moment", "1");
+                  window.dispatchEvent(new Event("gather_open_moment"));
                   router.push("/moments");
                 }}
               />
@@ -212,6 +214,8 @@ export default function BottomNav({ onOpenCapture }: BottomNavProps) {
                 sub="track a commitment"
                 onClick={() => {
                   setFireSheetOpen(false);
+                  sessionStorage.setItem("gather_open_promise", "1");
+                  window.dispatchEvent(new Event("gather_open_promise"));
                   router.push("/commitments");
                 }}
               />
