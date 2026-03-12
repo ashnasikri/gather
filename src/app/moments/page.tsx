@@ -205,6 +205,7 @@ export default function MomentsPage() {
   const [selectedFeeling, setSelectedFeeling] = useState<Feeling | null>(null);
   const [location, setLocation] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -248,12 +249,14 @@ export default function MomentsPage() {
     setSelectedFeeling(null);
     setLocation("");
     setSaving(false);
+    setSaveError(null);
     setAddOpen(false);
   };
 
   const handleSave = async () => {
     if (!title.trim() || saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const res = await fetch("/api/moments", {
         method: "POST",
@@ -270,9 +273,12 @@ export default function MomentsPage() {
         setMoments((prev) => [newMoment, ...prev]);
         resetForm();
       } else {
+        const err = await res.json().catch(() => ({}));
+        setSaveError(err.error ?? `error ${res.status}`);
         setSaving(false);
       }
-    } catch {
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "network error");
       setSaving(false);
     }
   };
@@ -448,6 +454,13 @@ export default function MomentsPage() {
                   color: "#6b5e50",
                 }}
               />
+
+              {/* Error */}
+              {saveError && (
+                <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "#c46b5a", margin: 0, textAlign: "center" }}>
+                  {saveError}
+                </p>
+              )}
 
               {/* Actions */}
               <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
