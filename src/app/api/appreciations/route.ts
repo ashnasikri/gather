@@ -28,9 +28,11 @@ export async function POST(req: NextRequest) {
   const filename = `${crypto.randomUUID()}.${ext}`
 
   const arrayBuffer = await file.arrayBuffer()
+  const uint8 = new Uint8Array(arrayBuffer)
+  const contentType = file.type || 'image/jpeg'
   const { error: uploadError } = await supabase.storage
     .from('appreciations')
-    .upload(filename, arrayBuffer, { contentType: file.type, upsert: false })
+    .upload(filename, uint8, { contentType, upsert: false })
 
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
 

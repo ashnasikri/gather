@@ -78,10 +78,11 @@ export default function AppreciationsPage() {
       if (res.ok) {
         await load();
       } else {
-        showToast("upload failed");
+        const body = await res.json().catch(() => ({}));
+        showToast(body.error ?? "upload failed");
       }
-    } catch {
-      showToast("upload failed");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "upload failed");
     } finally {
       setUploading(false);
     }
