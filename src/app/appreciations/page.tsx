@@ -114,8 +114,8 @@ export default function AppreciationsPage() {
           transition: "opacity 0.6s ease",
         }}
       >
-        {/* Back */}
-        <div style={{ padding: "20px 20px 12px" }}>
+        {/* Back + Title */}
+        <div style={{ padding: "20px 20px 16px", display: "flex", alignItems: "center", gap: "16px" }}>
           <span
             onClick={() => { window.location.href = "/freeze"; }}
             style={{
@@ -126,6 +126,15 @@ export default function AppreciationsPage() {
             }}
           >
             ←
+          </span>
+          <span style={{
+            fontFamily: "var(--font-newsreader), Georgia, serif",
+            fontSize: "20px",
+            fontWeight: 300,
+            fontStyle: "italic",
+            color: "#e8ddd0",
+          }}>
+            things people have said
           </span>
         </div>
 
