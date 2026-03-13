@@ -134,19 +134,10 @@ export default function AppreciationsPage() {
             <span style={{ fontSize: "32px", opacity: 0.25 }}>✨</span>
           </div>
         ) : (
-          <div style={{ display: "flex", gap: "8px", padding: "0 12px", alignItems: "flex-start" }}>
-            {/* Left column */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-              {left.map((item) => (
-                <GalleryImage key={item.id} item={item} onClick={() => { setLightbox(item); setDeleteConfirm(false); }} />
-              ))}
-            </div>
-            {/* Right column */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-              {right.map((item) => (
-                <GalleryImage key={item.id} item={item} onClick={() => { setLightbox(item); setDeleteConfirm(false); }} />
-              ))}
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 12px" }}>
+            {items.map((item) => (
+              <GalleryImage key={item.id} item={item} onClick={() => { setLightbox(item); setDeleteConfirm(false); }} />
+            ))}
           </div>
         )}
 
