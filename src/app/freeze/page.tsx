@@ -9,6 +9,28 @@ import PasswordGate from "@/components/PasswordGate";
 
 const CATEGORIES = [
   {
+    id: "swamped",
+    name: "Swamped with work",
+    accent: "#8B9E6B",
+    messages: [
+      { label: "The straightforward one", text: "Hey — I've been underwater with work and my replies have suffered. Not ignoring you, just genuinely buried. Surfacing soon." },
+      { label: "The lighter one", text: "Work has eaten my brain this week. I owe you a proper reply and you're getting one — just not today. Bear with me?" },
+      { label: "The honest-about-capacity one", text: "I've been in heads-down work mode and everything else has slipped. You're not forgotten — I'm just bad at doing both at once. I'll come up for air soon." },
+      { label: "The short one", text: "Buried in work right now. Will reply properly when I come up for air. Sorry for the quiet." },
+    ],
+  },
+  {
+    id: "saw-it",
+    name: "I saw it, will respond properly later",
+    accent: "#6B8B9E",
+    messages: [
+      { label: "The quick acknowledgment", text: "Saw this — want to give it a real reply when I have a minute. Didn't want you wondering." },
+      { label: "The warm one", text: "Read this and I'm sitting with it. Don't have the headspace to reply properly right now but I will. Just wanted you to know I saw it." },
+      { label: "The casual one", text: "Noted and not forgotten — just can't brain a good reply right now. Coming back to this." },
+      { label: "The shortest possible", text: "Seen. Replying soon. ❤️" },
+    ],
+  },
+  {
     id: "close",
     name: "Close friends & family",
     accent: "#7B9E6B",
