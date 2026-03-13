@@ -223,6 +223,7 @@ function MessageCard({
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(text);
   const [copied, setCopied] = useState(false);
+  const canShare = typeof navigator !== "undefined" && !!navigator.share;
 
   useEffect(() => { if (!isEditing) setDraft(text); }, [text, isEditing]);
 
@@ -237,6 +238,11 @@ function MessageCard({
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    try { await navigator.share({ text: draft }); }
+    catch { /* dismissed or unsupported */ }
   };
 
   return (
@@ -271,6 +277,14 @@ function MessageCard({
         >
           {copied ? "copied ✓" : "copy"}
         </button>
+        {canShare && (
+          <button
+            onClick={handleShare}
+            style={{ background: accent, border: `1px solid ${accent}`, borderRadius: "6px", padding: "5px 12px", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "white", cursor: "pointer", transition: "all 0.15s" }}
+          >
+            send
+          </button>
+        )}
       </div>
     </div>
   );
