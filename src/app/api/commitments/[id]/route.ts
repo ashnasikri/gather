@@ -13,6 +13,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     update.completed = body.completed
     update.completed_at = body.completed ? new Date().toISOString() : null
   }
+  if ('dropped' in body) {
+    update.dropped = body.dropped
+    update.dropped_at = body.dropped ? new Date().toISOString() : null
+  }
 
   const { data, error } = await supabase
     .from('commitments')

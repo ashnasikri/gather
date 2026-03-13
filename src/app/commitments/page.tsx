@@ -15,6 +15,8 @@ interface Commitment {
   due_text: string | null;
   completed: boolean;
   completed_at: string | null;
+  dropped: boolean;
+  dropped_at: string | null;
   created_at: string;
 }
 
@@ -57,10 +59,12 @@ export default function CommitmentsPage() {
   // Menu / inline state
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmDrop, setConfirmDrop] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [completing, setCompleting] = useState<Set<string>>(new Set());
   const [showDone, setShowDone] = useState(false);
+  const [showDropped, setShowDropped] = useState(false);
 
   const textInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -183,8 +187,22 @@ export default function CommitmentsPage() {
     await fetch(`/api/commitments/${id}`, { method: "DELETE" });
   };
 
-  const open = commitments.filter((c) => !c.completed);
-  const done = commitments.filter((c) => c.completed);
+  const handleDrop = async (id: string) => {
+    setConfirmDrop(null);
+    setMenuOpen(null);
+    setCommitments((prev) =>
+      prev.map((x) => x.id === id ? { ...x, dropped: true, dropped_at: new Date().toISOString() } : x)
+    );
+    await fetch(`/api/commitments/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dropped: true }),
+    });
+  };
+
+  const open = commitments.filter((c) => !c.completed && !c.dropped);
+  const done = commitments.filter((c) => c.completed && !c.dropped);
+  const dropped = commitments.filter((c) => c.dropped);
 
   // Sort open by priority weight
   const WEIGHT: Record<Priority, number> = { urgent: 0, important: 1, whenever: 2 };
@@ -195,6 +213,7 @@ export default function CommitmentsPage() {
     const isEditing = editingId === c.id;
     const menuIsOpen = menuOpen === c.id;
     const deleteConfirm = confirmDelete === c.id;
+    const dropConfirm = confirmDrop === c.id;
 
     return (
       <div
@@ -328,6 +347,27 @@ export default function CommitmentsPage() {
               </button>
             </div>
           )}
+
+          {/* Drop confirm */}
+          {dropConfirm && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" }}>
+              <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "#9a8b7a" }}>
+                drop this promise?
+              </span>
+              <button
+                onClick={() => handleDrop(c.id)}
+                style={{ background: "none", border: "none", color: "#8b7eb5", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif" }}
+              >
+                drop it
+              </button>
+              <button
+                onClick={() => setConfirmDrop(null)}
+                style={{ background: "none", border: "none", color: "#6b5e50", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif" }}
+              >
+                cancel
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ··· menu */}
@@ -409,6 +449,16 @@ export default function CommitmentsPage() {
                   edit
                 </button>
                 <button
+                  onClick={() => { setConfirmDrop(c.id); setMenuOpen(null); }}
+                  style={{
+                    display: "block", width: "100%", background: "none", border: "none",
+                    padding: "7px 12px", cursor: "pointer", color: "#8b7eb5",
+                    fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, textAlign: "left",
+                  }}
+                >
+                  drop
+                </button>
+                <button
                   onClick={() => { setConfirmDelete(c.id); setMenuOpen(null); }}
                   style={{
                     display: "block", width: "100%", background: "none", border: "none",
@@ -476,7 +526,9 @@ export default function CommitmentsPage() {
                   <span style={{ color: "#d4853b", fontWeight: 600 }}>{open.length}</span>
                   <span> open · </span>
                   <span style={{ color: "#4a7c59" }}>{done.length}</span>
-                  <span> done</span>
+                  <span> done · </span>
+                  <span style={{ color: "#8b7eb5" }}>{dropped.length}</span>
+                  <span> let go</span>
                 </>
               )}
             </span>
@@ -644,6 +696,28 @@ export default function CommitmentsPage() {
                 <span style={{ fontSize: "10px" }}>{showDone ? "▲" : "▼"}</span>
               </button>
               {showDone && done.map(renderItem)}
+            </div>
+          )}
+
+          {/* Dropped section */}
+          {dropped.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowDropped((v) => !v)}
+                style={{
+                  display: "flex", alignItems: "center", gap: "6px",
+                  background: "none", border: "none", cursor: "pointer",
+                  padding: "20px 20px 8px",
+                  fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                  fontSize: "11px", fontWeight: 400, color: "#6b5e50",
+                  letterSpacing: "1.5px", textTransform: "uppercase",
+                }}
+              >
+                let go
+                <span style={{ color: "#8b7eb5" }}>{dropped.length}</span>
+                <span style={{ fontSize: "10px" }}>{showDropped ? "▲" : "▼"}</span>
+              </button>
+              {showDropped && dropped.map(renderItem)}
             </div>
           )}
         </div>
