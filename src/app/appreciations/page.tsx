@@ -105,6 +105,7 @@ export default function AppreciationsPage() {
     <PasswordGate>
       <main
         style={{
+          width: "100%",
           maxWidth: "430px",
           margin: "0 auto",
           minHeight: "100dvh",
@@ -134,7 +135,7 @@ export default function AppreciationsPage() {
             <span style={{ fontSize: "32px", opacity: 0.25 }}>✨</span>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 12px", width: "100%", boxSizing: "border-box" }}>
             {items.map((item) => (
               <GalleryImage key={item.id} item={item} onClick={() => { setLightbox(item); setDeleteConfirm(false); }} />
             ))}
