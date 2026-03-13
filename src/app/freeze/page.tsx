@@ -386,8 +386,16 @@ export default function FreezePage() {
 
             {/* Juan's reminders */}
             <div className="animate-fade-in" style={{ backgroundColor: "var(--surface)", borderRadius: "12px", padding: "22px 24px", marginBottom: "12px", animationDelay: "60ms", animationFillMode: "both" }}>
-              <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: "14px" }}>
-                Reminders from Juan
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" , marginBottom: "14px" }}>
+                <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-faint)" }}>
+                  Reminders from Juan
+                </div>
+                <span
+                  onClick={() => { window.location.href = "/appreciations"; }}
+                  style={{ fontSize: "13px", opacity: 0.35, cursor: "pointer" }}
+                >
+                  ✨
+                </span>
               </div>
               {JUAN_WISDOM.map((w, i) => (
                 <p key={i} style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "14.5px", fontStyle: "italic", fontWeight: 300, color: "var(--text-soft)", lineHeight: 1.65, margin: 0, padding: "5px 0" }}>{w}</p>
