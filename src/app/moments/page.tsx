@@ -5,7 +5,7 @@ import PasswordGate from "@/components/PasswordGate";
 import BonfireCharacter from "@/components/BonfireCharacter";
 import BottomNav from "@/components/BottomNav";
 
-type Feeling = "nourishing" | "deep" | "joyful" | "calm" | "intense" | "inspired" | "angry" | "safe" | "belonged" | "courageous" | "brave" | "grounded";
+type Feeling = "nourishing" | "deep" | "joyful" | "calm" | "intense" | "inspired" | "angry" | "safe" | "belonged" | "courageous" | "brave" | "grounded" | "strategic" | "free" | "flexible" | "strong";
 
 interface Moment {
   id: string;
@@ -32,6 +32,10 @@ const feelings: { value: Feeling; emoji: string; label: string; color: string }[
   { value: "courageous", emoji: "🦁", label: "courageous", color: "#c4883b" },
   { value: "brave",      emoji: "⚡", label: "brave",      color: "#b5943b" },
   { value: "grounded",   emoji: "🌱", label: "grounded",   color: "#7a8e6b" },
+  { value: "strategic",  emoji: "♟️", label: "strategic",  color: "#6b7eb5" },
+  { value: "free",       emoji: "🕊️", label: "free",       color: "#7ab5c4" },
+  { value: "flexible",   emoji: "🌀", label: "flexible",   color: "#9b8eb5" },
+  { value: "strong",     emoji: "💪", label: "strong",     color: "#b57a6b" },
 ];
 
 const feelingMap = Object.fromEntries(feelings.map((f) => [f.value, f])) as Record<Feeling, typeof feelings[0]>;
