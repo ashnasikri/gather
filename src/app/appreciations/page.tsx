@@ -303,8 +303,8 @@ function GalleryImage({ item, onClick }: { item: Appreciation; onClick: () => vo
       onLoad={() => setLoaded(true)}
       style={{
         width: "100%",
+        height: "auto",
         borderRadius: "12px",
-        objectFit: "cover",
         cursor: "pointer",
         opacity: loaded ? 1 : 0,
         transition: "opacity 0.3s ease",
