@@ -44,9 +44,19 @@ const PRIORITY_OPTIONS: { value: Priority; emoji: string; label: string; color: 
   { value: "whenever", emoji: "⚪", label: "whenever", color: "#6b5e50" },
 ];
 
+interface EncounterAction {
+  id: string;
+  text: string;
+  done: boolean;
+  personName: string | null;
+  personId: string | null;
+}
+
 export default function CommitmentsPage() {
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actions, setActions] = useState<EncounterAction[]>([]);
+  const [togglingAction, setTogglingAction] = useState<Set<string>>(new Set());
 
   // Add form state
   const [addOpen, setAddOpen] = useState(false);
@@ -71,15 +81,34 @@ export default function CommitmentsPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/commitments");
-      if (res.ok) {
-        const { commitments: data } = await res.json();
+      const [commRes, actRes] = await Promise.all([
+        fetch("/api/commitments"),
+        fetch("/api/actions"),
+      ]);
+      if (commRes.ok) {
+        const { commitments: data } = await commRes.json();
         setCommitments(data ?? []);
+      }
+      if (actRes.ok) {
+        setActions(await actRes.json());
       }
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const toggleAction = async (id: string, currentDone: boolean) => {
+    setTogglingAction((s) => new Set(s).add(id));
+    setTimeout(() => {
+      setActions((prev) => prev.filter((a) => a.id !== id));
+      setTogglingAction((s) => { const n = new Set(s); n.delete(id); return n; });
+    }, 350);
+    await fetch(`/api/actions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ done: !currentDone }),
+    });
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -523,7 +552,7 @@ export default function CommitmentsPage() {
             <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "#6b5e50" }}>
               {loading ? "..." : (
                 <>
-                  <span style={{ color: "#d4853b", fontWeight: 600 }}>{open.length}</span>
+                  <span style={{ color: "#d4853b", fontWeight: 600 }}>{open.length + actions.length}</span>
                   <span> open · </span>
                   <span style={{ color: "#4a7c59" }}>{done.length}</span>
                   <span> done · </span>
@@ -676,6 +705,49 @@ export default function CommitmentsPage() {
               sortedOpen.map(renderItem)
             )}
           </div>
+
+          {/* Open threads from encounters */}
+          {actions.length > 0 && (
+            <div>
+              <div style={{ padding: "20px 20px 8px" }}>
+                <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11px", fontWeight: 400, color: "#6b5e50", letterSpacing: "1.5px", textTransform: "uppercase" }}>
+                  open threads
+                </span>
+              </div>
+              {actions.map((action) => (
+                <div
+                  key={action.id}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: "12px",
+                    padding: "12px 14px", borderBottom: "1px solid #3a2f24",
+                    opacity: togglingAction.has(action.id) ? 0 : 1,
+                    transition: "opacity 0.35s ease",
+                  }}
+                >
+                  <button
+                    onClick={() => toggleAction(action.id, action.done)}
+                    style={{
+                      width: "18px", height: "18px", borderRadius: "50%",
+                      border: "1.5px solid #6b5e50", backgroundColor: "transparent",
+                      cursor: "pointer", flexShrink: 0, marginTop: "2px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.2s ease",
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "14px", fontWeight: 300, color: "#e8ddd0", lineHeight: 1.4, display: "block" }}>
+                      {action.text}
+                    </span>
+                    {action.personName && (
+                      <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", color: "#6b5e50", display: "block", marginTop: "2px" }}>
+                        → {action.personName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Done section */}
           {done.length > 0 && (
