@@ -83,13 +83,17 @@ export default function HomePage() {
           <BonfireCharacter mood={mood} />
 
           {/* Escape hatch links */}
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", padding: "2px 0 6px" }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", padding: "2px 0 6px", flexWrap: "wrap" }}>
             <Link href="/freeze" style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12.5px", fontWeight: 300, color: "var(--text-faint)", textDecoration: "none" }}>
               frozen? can&apos;t reply?
             </Link>
             <span style={{ color: "var(--text-faint)", fontSize: "12.5px", lineHeight: 1 }}>·</span>
             <Link href="/boundaries" style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12.5px", fontWeight: 300, color: "var(--text-faint)", textDecoration: "none" }}>
               about to say yes?
+            </Link>
+            <span style={{ color: "var(--text-faint)", fontSize: "12.5px", lineHeight: 1 }}>·</span>
+            <Link href="/resolve" style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12.5px", fontWeight: 300, color: "var(--text-faint)", textDecoration: "none" }}>
+              tension with someone?
             </Link>
           </div>
 
