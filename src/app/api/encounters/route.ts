@@ -33,42 +33,61 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   console.log('[POST /api/encounters] body:', JSON.stringify(body))
 
-  const { personName, city, date, type, summary, fullText, energy, category, source, rawTranscript, actions, links } = body
+  const { personId, personName, city, date, type, summary, fullText, energy, category, source, rawTranscript, actions, links } = body
 
   if (!personName || !type || !summary) {
     console.log('[POST /api/encounters] validation failed — missing fields:', { personName, type, summary })
     return NextResponse.json({ error: 'personName, type, and summary are required' }, { status: 400 })
   }
 
-  // Find or create person (case-insensitive)
-  const { data: existing, error: findErr } = await supabase
-    .from('people')
-    .select('*')
-    .ilike('name', personName.trim())
-    .limit(1)
-    .single()
-
-  if (findErr && findErr.code !== 'PGRST116') {
-    // PGRST116 = "not found" — that's fine, we'll create; anything else is a real error
-    console.error('[POST /api/encounters] find person error:', findErr)
-  }
-
   const now = new Date()
   const dateStr = date ?? now.toISOString().slice(0, 10)
   const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 
-  let person = existing
-  if (!person) {
-    const { data: created, error: createErr } = await supabase
+  let person = null
+
+  if (personId) {
+    // Use existing person directly
+    const { data: existing, error: fetchErr } = await supabase
       .from('people')
-      .insert({ name: personName.trim(), city: city ?? null, first_met_date: dateStr })
-      .select()
+      .select('*')
+      .eq('id', personId)
       .single()
-    console.log('[POST /api/encounters] create person result:', { created, createErr })
-    if (createErr) return NextResponse.json({ error: createErr.message, details: createErr }, { status: 500 })
-    person = created
-  } else if (city && !person.city) {
-    await supabase.from('people').update({ city }).eq('id', person.id)
+    if (fetchErr) {
+      console.error('[POST /api/encounters] fetch person by id error:', fetchErr)
+      return NextResponse.json({ error: fetchErr.message }, { status: 500 })
+    }
+    person = existing
+    // Update city if provided and person has none
+    if (city && !person.city) {
+      await supabase.from('people').update({ city }).eq('id', person.id)
+    }
+  } else {
+    // Find or create person (case-insensitive)
+    const { data: existing, error: findErr } = await supabase
+      .from('people')
+      .select('*')
+      .ilike('name', personName.trim())
+      .limit(1)
+      .single()
+
+    if (findErr && findErr.code !== 'PGRST116') {
+      console.error('[POST /api/encounters] find person error:', findErr)
+    }
+
+    person = existing ?? null
+    if (!person) {
+      const { data: created, error: createErr } = await supabase
+        .from('people')
+        .insert({ name: personName.trim(), city: city ?? null, first_met_date: dateStr })
+        .select()
+        .single()
+      console.log('[POST /api/encounters] create person result:', { created, createErr })
+      if (createErr) return NextResponse.json({ error: createErr.message, details: createErr }, { status: 500 })
+      person = created
+    } else if (city && !person.city) {
+      await supabase.from('people').update({ city }).eq('id', person.id)
+    }
   }
 
   // Create encounter

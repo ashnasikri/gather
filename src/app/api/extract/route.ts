@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+import { formatRelativeDate } from '@/lib/dateUtils'
 
 export async function POST(req: NextRequest) {
   const { rawText } = await req.json()
@@ -58,7 +60,40 @@ Guidelines:
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
     const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const extracted = JSON.parse(cleaned)
-    return NextResponse.json(extracted)
+
+    // Skip person matching if confidence is low or name is generic
+    let matchedPerson = null
+    const personName = extracted.personName
+    if (extracted.confidence !== 'low' && personName && personName !== 'someone') {
+      const { data: people } = await supabase
+        .from('people')
+        .select('id, name, city, encounters(id, created_at)')
+        .ilike('name', `%${personName}%`)
+        .limit(5)
+
+      if (people && people.length > 0) {
+        const ranked = people
+          .map((p) => {
+            const enc = (p.encounters as { id: string; created_at: string }[]) ?? []
+            const sorted = [...enc].sort(
+              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )
+            return {
+              id: p.id,
+              name: p.name,
+              city: p.city ?? null,
+              encounterCount: enc.length,
+              lastSeen: sorted[0] ? formatRelativeDate(sorted[0].created_at) : null,
+            }
+          })
+          .sort((a, b) => b.encounterCount - a.encounterCount)
+
+        // Return all matches if ambiguous, best match if clear
+        matchedPerson = ranked.length === 1 ? ranked[0] : ranked
+      }
+    }
+
+    return NextResponse.json({ ...extracted, matchedPerson })
   } catch (err) {
     console.error('[POST /api/extract] error:', err)
     return NextResponse.json({ error: 'extraction_failed' }, { status: 500 })

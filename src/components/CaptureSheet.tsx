@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { EncounterType } from "@/lib/types";
 
 type Stage = "input" | "processing" | "confirm" | "done";
 type Category = "work" | "personal" | "social";
+
+interface MatchedPerson {
+  id: string;
+  name: string;
+  city: string | null;
+  encounterCount: number;
+  lastSeen: string | null;
+}
 
 interface Extracted {
   personName: string;
@@ -16,6 +24,7 @@ interface Extracted {
   links: string[];
   actions: string[];
   confidence: "high" | "medium" | "low";
+  matchedPerson: MatchedPerson | MatchedPerson[] | null;
 }
 
 interface CaptureSheetProps {
@@ -72,6 +81,15 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
   const [actions, setActions] = useState<{ text: string; checked: boolean }[]>([]);
   const [newAction, setNewAction] = useState("");
 
+  // Matched/selected person for linking to existing
+  const [matchedPerson, setMatchedPerson] = useState<MatchedPerson | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+
+  // Name search dropdown state
+  const [nameSearchResults, setNameSearchResults] = useState<MatchedPerson[]>([]);
+  const [showNameDropdown, setShowNameDropdown] = useState(false);
+  const nameSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -94,6 +112,10 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
         setActions([]);
         setNewAction("");
         setSaving(false);
+        setMatchedPerson(null);
+        setSelectedPersonId(null);
+        setNameSearchResults([]);
+        setShowNameDropdown(false);
         onMoodChange("idle");
       }, 350);
     }
@@ -114,6 +136,61 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
     setCategory(data.category);
     setLinks(data.links.map((url) => ({ url, checked: true })));
     setActions(data.actions.map((text) => ({ text, checked: true })));
+
+    // Handle matched person — skip if confidence is low
+    if (data.confidence !== "low" && data.matchedPerson) {
+      if (Array.isArray(data.matchedPerson)) {
+        // Ambiguous — show dropdown with candidates pre-filled
+        setNameSearchResults(data.matchedPerson);
+        setShowNameDropdown(true);
+        setMatchedPerson(null);
+        setSelectedPersonId(null);
+      } else {
+        setMatchedPerson(data.matchedPerson);
+        setSelectedPersonId(data.matchedPerson.id);
+      }
+    }
+  };
+
+  const searchPeople = useCallback(async (q: string) => {
+    if (q.length < 2) {
+      setNameSearchResults([]);
+      setShowNameDropdown(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/people/search?q=${encodeURIComponent(q)}`);
+      if (res.ok) {
+        const results: MatchedPerson[] = await res.json();
+        setNameSearchResults(results);
+        setShowNameDropdown(true);
+      }
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
+  const handleNameChange = (value: string) => {
+    setPersonName(value);
+    // Clear any existing match when user manually edits name
+    setMatchedPerson(null);
+    setSelectedPersonId(null);
+    // Debounce search
+    if (nameSearchTimeout.current) clearTimeout(nameSearchTimeout.current);
+    nameSearchTimeout.current = setTimeout(() => searchPeople(value), 300);
+  };
+
+  const selectSearchResult = (person: MatchedPerson) => {
+    setPersonName(person.name);
+    setMatchedPerson(person);
+    setSelectedPersonId(person.id);
+    setShowNameDropdown(false);
+    setNameSearchResults([]);
+  };
+
+  const clearMatch = () => {
+    setMatchedPerson(null);
+    setSelectedPersonId(null);
   };
 
   const handleNext = async () => {
@@ -160,6 +237,7 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          personId: selectedPersonId ?? undefined,
           personName: personName.trim(),
           city: city.trim() || undefined,
           date: encounterDate,
@@ -384,18 +462,95 @@ export default function CaptureSheet({ open, onClose, onSaved, onMoodChange }: C
                 </div>
               )}
 
+              {/* Matched person banner */}
+              {matchedPerson && (
+                <div style={{
+                  backgroundColor: "rgba(240,192,96,0.08)",
+                  borderLeft: "2px solid rgba(240,192,96,0.2)",
+                  borderRadius: "10px",
+                  padding: "10px 14px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                }}>
+                  <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-soft)", margin: 0 }}>
+                    adding to{" "}
+                    <span style={{ fontWeight: 500 }}>{matchedPerson.name}</span>
+                    {"'s story"}
+                    {matchedPerson.city ? ` · ${matchedPerson.city}` : ""}
+                    {matchedPerson.encounterCount > 0 ? ` · met ${matchedPerson.encounterCount} time${matchedPerson.encounterCount === 1 ? "" : "s"}` : ""}
+                  </p>
+                  <button
+                    onClick={clearMatch}
+                    style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "16px", padding: "0 2px", flexShrink: 0 }}
+                    title="unlink"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
               {/* Person name */}
-              <div>
+              <div style={{ position: "relative" }}>
                 <label style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11px", color: "var(--text-faint)", letterSpacing: "0.8px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
                   person
                 </label>
                 <input
                   type="text"
                   value={personName}
-                  onChange={(e) => setPersonName(e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  onFocus={() => { if (nameSearchResults.length > 0) setShowNameDropdown(true); }}
+                  onBlur={() => setTimeout(() => setShowNameDropdown(false), 150)}
                   placeholder="their name"
                   style={{ ...inputBase, fontSize: "18px", fontWeight: 400, padding: "12px 14px" }}
                 />
+                {/* Search dropdown */}
+                {showNameDropdown && (
+                  <div style={{
+                    position: "absolute",
+                    top: "calc(100% + 4px)",
+                    left: 0, right: 0,
+                    backgroundColor: "var(--surface-light)",
+                    border: "1px solid var(--border-light)",
+                    borderRadius: "12px",
+                    zIndex: 10,
+                    overflow: "hidden",
+                  }}>
+                    {nameSearchResults.map((p, i) => (
+                      <div
+                        key={p.id}
+                        onMouseDown={() => selectSearchResult(p)}
+                        style={{
+                          padding: "10px 14px",
+                          borderBottom: i < nameSearchResults.length - 1 ? "1px solid var(--border)" : "1px solid var(--border)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "14px", fontWeight: 400, color: "var(--text)" }}>{p.name}</div>
+                        <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-quiet)" }}>
+                          {[p.city, p.encounterCount > 0 ? `met ${p.encounterCount} time${p.encounterCount === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}
+                        </div>
+                      </div>
+                    ))}
+                    <div
+                      onMouseDown={() => {
+                        setMatchedPerson(null);
+                        setSelectedPersonId(null);
+                        setShowNameDropdown(false);
+                      }}
+                      style={{
+                        padding: "10px 14px",
+                        cursor: "pointer",
+                        fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                        fontSize: "13px",
+                        color: "var(--ember)",
+                      }}
+                    >
+                      + add &ldquo;{personName}&rdquo; as new person
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Date */}

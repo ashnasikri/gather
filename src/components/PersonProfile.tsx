@@ -113,6 +113,9 @@ export default function PersonProfile({ personId, open, onClose }: PersonProfile
   // Actions optimistic state
   const [actions, setActions] = useState<Action[]>([]);
 
+  // Encounter delete confirm
+  const [confirmDeleteEncId, setConfirmDeleteEncId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!open || !personId) return;
     setTab("story");
@@ -123,6 +126,7 @@ export default function PersonProfile({ personId, open, onClose }: PersonProfile
     setSelectedNote(null);
     setNoteInput("");
     setLinkInput("");
+    setConfirmDeleteEncId(null);
 
     fetch(`/api/people/${personId}`)
       .then((r) => r.json())
@@ -235,17 +239,32 @@ export default function PersonProfile({ personId, open, onClose }: PersonProfile
 
   const addLink = async () => {
     if (!data || !linkInput.trim()) return;
-    await fetch("/api/links", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ personName: data.person.name, url: linkInput.trim() }),
-    });
+    const optimistic: Link = { id: `tmp-${Date.now()}`, url: linkInput.trim(), created_at: new Date().toISOString() };
+    setData((prev) => prev ? { ...prev, links: [optimistic, ...prev.links] } : prev);
     setLinkInput("");
     setShowLinkInput(false);
-    // Refresh
-    const r = await fetch(`/api/people/${data.person.id}`);
-    const d: PersonData = await r.json();
-    setData(d);
+    const res = await fetch("/api/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personId: data.person.id, url: optimistic.url }),
+    });
+    if (res.ok) {
+      const { link: saved } = await res.json();
+      setData((prev) => prev ? { ...prev, links: prev.links.map((l) => l.id === optimistic.id ? saved : l) } : prev);
+    } else {
+      // Revert on failure
+      setData((prev) => prev ? { ...prev, links: prev.links.filter((l) => l.id !== optimistic.id) } : prev);
+    }
+  };
+
+  const deleteEncounter = async (encId: string, confirmed: boolean) => {
+    if (!confirmed) {
+      setConfirmDeleteEncId(encId);
+      return;
+    }
+    setData((prev) => prev ? { ...prev, encounters: prev.encounters.filter((e) => e.id !== encId) } : prev);
+    setConfirmDeleteEncId(null);
+    await fetch(`/api/encounters/${encId}`, { method: "DELETE" });
   };
 
   const sortedActions = [
@@ -506,7 +525,22 @@ export default function PersonProfile({ personId, open, onClose }: PersonProfile
                               </span>
                             )}
                           </div>
-                          {enc.energy != null && <EnergyBar value={enc.energy} />}
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            {enc.energy != null && <EnergyBar value={enc.energy} />}
+                            <button
+                              onClick={() => deleteEncounter(enc.id, confirmDeleteEncId === enc.id)}
+                              onBlur={() => { if (confirmDeleteEncId === enc.id) setConfirmDeleteEncId(null); }}
+                              style={{
+                                background: "none", border: "none", cursor: "pointer",
+                                fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                                fontSize: confirmDeleteEncId === enc.id ? "10px" : "14px",
+                                color: confirmDeleteEncId === enc.id ? "var(--rose)" : "var(--text-faint)",
+                                padding: 0, lineHeight: 1, transition: "color 0.15s",
+                              }}
+                            >
+                              {confirmDeleteEncId === enc.id ? "delete?" : "×"}
+                            </button>
+                          </div>
                         </div>
                         {/* Summary */}
                         <p style={{

@@ -3,29 +3,37 @@ import { supabase } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { personName, url, title, source, summary } = body
+  const { personId, personName, url, title, source, summary } = body
 
-  if (!personName || !url) {
-    return NextResponse.json({ error: 'personName and url are required' }, { status: 400 })
+  if (!url || (!personId && !personName)) {
+    return NextResponse.json({ error: 'url and either personId or personName are required' }, { status: 400 })
   }
 
-  // Find or create person (case-insensitive)
-  const { data: existing } = await supabase
-    .from('people')
-    .select('*')
-    .ilike('name', personName.trim())
-    .limit(1)
-    .single()
+  let person = null
 
-  let person = existing
-  if (!person) {
-    const { data: created, error: createErr } = await supabase
+  if (personId) {
+    const { data: existing, error } = await supabase.from('people').select('*').eq('id', personId).single()
+    if (error || !existing) return NextResponse.json({ error: 'Person not found' }, { status: 404 })
+    person = existing
+  } else {
+    // Find or create person (case-insensitive)
+    const { data: existing } = await supabase
       .from('people')
-      .insert({ name: personName.trim() })
-      .select()
+      .select('*')
+      .ilike('name', personName.trim())
+      .limit(1)
       .single()
-    if (createErr) return NextResponse.json({ error: createErr.message }, { status: 500 })
-    person = created
+
+    person = existing
+    if (!person) {
+      const { data: created, error: createErr } = await supabase
+        .from('people')
+        .insert({ name: personName.trim() })
+        .select()
+        .single()
+      if (createErr) return NextResponse.json({ error: createErr.message }, { status: 500 })
+      person = created
+    }
   }
 
   const { data: link, error: linkErr } = await supabase
