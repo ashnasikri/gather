@@ -1,13 +1,22 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import PasswordGate from "@/components/PasswordGate";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type Phase = "vent" | "reflecting" | "reflection" | "picker" | "breakdown_loading" | "breakdown" | "done";
+type Phase =
+  | "vent"
+  | "reflecting"
+  | "reflection"
+  | "picker"
+  | "pathways_loading"
+  | "pathways"
+  | "breakdown_loading"
+  | "breakdown"
+  | "done";
 
 interface ReflectResult {
   reflection: string;
@@ -18,6 +27,13 @@ interface ReflectResult {
   personName: string | null;
 }
 
+interface Pathway {
+  title: string;
+  story: string;
+  theirFeeling: string;
+  theirNeed: string;
+}
+
 interface BreakdownResult {
   observation: string;
   feeling: string;
@@ -26,6 +42,7 @@ interface BreakdownResult {
   empathyMap: string;
   beforeAfter: { before: string; after: string };
   draftMessage: string;
+  checkInMessage: string;
   conflictType: string;
 }
 
@@ -202,6 +219,19 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function LoadingDots() {
+  return (
+    <>
+      <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginTop: "24px" }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "var(--ember)", animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+        ))}
+      </div>
+      <style>{`@keyframes pulse{0%,100%{opacity:0.2;transform:scale(0.8)}50%{opacity:1;transform:scale(1)}}`}</style>
+    </>
+  );
+}
+
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function ResolvePage() {
@@ -212,7 +242,11 @@ export default function ResolvePage() {
   const [feelings, setFeelings] = useState<string[]>([]);
   const [bodySensations, setBodySensations] = useState<string[]>([]);
   const [needs, setNeeds] = useState<string[]>([]);
+  const [pathways, setPathways] = useState<Pathway[]>([]);
+  const [selectedPathway, setSelectedPathway] = useState<string | null>(null);
+  const [myStory, setMyStory] = useState("");
   const [breakdown, setBreakdown] = useState<BreakdownResult | null>(null);
+  const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -251,9 +285,35 @@ export default function ResolvePage() {
   // Phase 3 → 4
   const handleReflectionNext = () => { setPhase("picker"); scrollTop(); };
 
-  // Phase 4 → 5: call breakdown API
+  // Phase 4 → 5: call pathways API
   const handlePickerSubmit = async () => {
     if (feelings.length === 0 || needs.length === 0) return;
+    setError(null);
+    setPhase("pathways_loading");
+    scrollTop();
+    try {
+      const res = await fetch("/api/resolve/pathways", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rawVent: rawVent.trim(),
+          followUpAnswer: followUpAnswer.trim() || null,
+          feelings, needs,
+          personName: reflect?.personName ?? null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const data: { pathways: Pathway[] } = await res.json();
+      setPathways(data.pathways ?? []);
+      setPhase("pathways");
+      scrollTop();
+    } catch {
+      setError("the fire flickered — try again?");
+      setPhase("picker");
+    }
+  };
+
+  // Phase 5 → 6: call breakdown API
+  const handlePathwaysSubmit = async () => {
     setError(null);
     setPhase("breakdown_loading");
     scrollTop();
@@ -265,6 +325,8 @@ export default function ResolvePage() {
           followUpAnswer: followUpAnswer.trim() || null,
           feelings, bodySensations, needs,
           personName: reflect?.personName ?? null,
+          myStory: myStory.trim() || null,
+          selectedPathway: selectedPathway ?? null,
         }),
       });
       if (!res.ok) throw new Error();
@@ -274,7 +336,7 @@ export default function ResolvePage() {
       scrollTop();
     } catch {
       setError("the fire flickered — try again?");
-      setPhase("picker");
+      setPhase("pathways");
     }
   };
 
@@ -302,18 +364,16 @@ export default function ResolvePage() {
     scrollTop();
   };
 
-  const handleSkip = () => { setPhase("done"); scrollTop(); };
-
   const handleReset = () => {
     setPhase("vent"); setRawVent(""); setReflect(null);
     setFollowUpAnswer(""); setFeelings([]); setBodySensations([]);
-    setNeeds([]); setBreakdown(null); setSaved(false); setError(null);
+    setNeeds([]); setPathways([]); setSelectedPathway(null); setMyStory("");
+    setBreakdown(null); setExpandedAction(null); setSaved(false); setError(null);
     scrollTop();
   };
 
   const personName = reflect?.personName ?? null;
 
-  // Section label helper
   const sectionLabel = (text: string, count?: number) => (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" }}>
       <h3 style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "18px", fontWeight: 300, color: "var(--text)", margin: 0 }}>
@@ -417,12 +477,7 @@ export default function ResolvePage() {
               <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)", margin: 0 }}>
                 finding the feelings, needs, and clarity
               </p>
-              <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginTop: "24px" }}>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "var(--ember)", animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
-                ))}
-              </div>
-              <style>{`@keyframes pulse{0%,100%{opacity:0.2;transform:scale(0.8)}50%{opacity:1;transform:scale(1)}}`}</style>
+              <LoadingDots />
             </div>
           )}
 
@@ -435,7 +490,6 @@ export default function ResolvePage() {
                 </div>
               </div>
 
-              {/* Reflection card */}
               <div style={{ backgroundColor: "var(--surface)", borderRadius: "14px", padding: "14px 16px", marginBottom: "20px" }}>
                 {upperLabel("I hear you saying")}
                 <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "14px", fontStyle: "italic", fontWeight: 300, color: "var(--text-soft)", lineHeight: 1.6, margin: 0 }}>
@@ -443,11 +497,10 @@ export default function ResolvePage() {
                 </p>
               </div>
 
-              {/* Follow-up question */}
               {reflect.followUp ? (
                 <div>
                   <div style={{ backgroundColor: "rgba(240,192,96,0.08)", borderLeft: "2px solid rgba(240,192,96,0.22)", borderRadius: "14px", padding: "14px 16px", marginBottom: "16px" }}>
-                    <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "15px", fontWeight: 300, color: "var(--text)", lineHeight: 1.55, margin: "0 0 0" }}>
+                    <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "15px", fontWeight: 300, color: "var(--text)", lineHeight: 1.55, margin: 0 }}>
                       🔥 {reflect.followUp}
                     </p>
                   </div>
@@ -513,7 +566,6 @@ export default function ResolvePage() {
                 </p>
               </div>
 
-              {/* Context reminder */}
               <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", padding: "11px 14px", marginBottom: "24px" }}>
                 <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12.5px", fontWeight: 300, color: "var(--text-quiet)", margin: 0 }}>
                   about:{" "}
@@ -530,7 +582,6 @@ export default function ResolvePage() {
                 </div>
               )}
 
-              {/* Feelings */}
               <div style={{ marginBottom: "24px" }}>
                 {sectionLabel("what are you feeling?", feelings.length)}
                 {FEELING_FAMILIES.map((fam) => (
@@ -549,7 +600,6 @@ export default function ResolvePage() {
 
               <div style={{ height: "1px", backgroundColor: "var(--border-light)", margin: "0 0 24px" }} />
 
-              {/* Body sensations */}
               <div style={{ marginBottom: "24px" }}>
                 {sectionLabel("where do you feel it in your body?", bodySensations.length)}
                 <PillGroup
@@ -561,7 +611,6 @@ export default function ResolvePage() {
 
               <div style={{ height: "1px", backgroundColor: "var(--border-light)", margin: "0 0 24px" }} />
 
-              {/* Needs */}
               <div style={{ marginBottom: "24px" }}>
                 {sectionLabel("what do you need?", needs.length)}
                 {NEED_FAMILIES.map((fam) => (
@@ -578,12 +627,10 @@ export default function ResolvePage() {
                 ))}
               </div>
 
-              {/* 80px spacer for sticky button */}
               <div style={{ height: "80px" }} />
 
-              {/* Sticky submit */}
               {feelings.length > 0 && needs.length > 0 && (
-                <div style={{ position: "sticky", bottom: "16px", padding: "0" }}>
+                <div style={{ position: "sticky", bottom: "16px" }}>
                   <button
                     onClick={handlePickerSubmit}
                     style={{
@@ -594,14 +641,127 @@ export default function ResolvePage() {
                       boxShadow: "0 4px 20px rgba(224,120,64,0.3)",
                     }}
                   >
-                    show me the clarity →
+                    explore what&apos;s going on for them →
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* ── PHASE 5a: BREAKDOWN LOADING ── */}
+          {/* ── PHASE 5a: PATHWAYS LOADING ── */}
+          {phase === "pathways_loading" && (
+            <div className="animate-fade-in" style={{ padding: "60px 20px 0", textAlign: "center" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
+                <Sprite src="/sprites/thinking-removebg-preview.png" size={60} />
+              </div>
+              <h2 style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "17px", fontWeight: 300, color: "var(--text)", margin: "0 0 8px" }}>
+                imagining their world...
+              </h2>
+              <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)", margin: 0 }}>
+                what might be going on for {personName ?? "them"}?
+              </p>
+              <LoadingDots />
+            </div>
+          )}
+
+          {/* ── PHASE 5b: PATHWAYS ── */}
+          {phase === "pathways" && (
+            <div className="animate-fade-in" style={{ padding: "28px 20px 0" }}>
+              <div style={{ textAlign: "center", marginBottom: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: "14px" }}>
+                  <Sprite src="/sprites/listening-removebg-preview.png" size={48} />
+                </div>
+                <h2 style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "20px", fontWeight: 300, color: "var(--text)", margin: "0 0 6px", lineHeight: 1.3 }}>
+                  what might be going on for {personName ?? "them"}?
+                </h2>
+                <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12.5px", fontWeight: 300, color: "var(--text-quiet)", margin: 0, lineHeight: 1.5 }}>
+                  these are possibilities, not answers — tap one if it resonates
+                </p>
+              </div>
+
+              {error && (
+                <div style={{ backgroundColor: "rgba(176,112,112,0.10)", border: "1px solid rgba(176,112,112,0.3)", borderRadius: "12px", padding: "12px 14px", marginBottom: "16px", textAlign: "center" }}>
+                  <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "#B07070", margin: 0 }}>
+                    {error}
+                  </p>
+                </div>
+              )}
+
+              {/* Pathway cards */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "24px" }}>
+                {pathways.map((p, i) => {
+                  const isSelected = selectedPathway === p.story;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedPathway(isSelected ? null : p.story)}
+                      style={{
+                        textAlign: "left", padding: "16px", borderRadius: "14px", cursor: "pointer",
+                        backgroundColor: isSelected ? "rgba(122,173,122,0.10)" : "var(--surface)",
+                        border: `1.5px solid ${isSelected ? "rgba(122,173,122,0.44)" : "var(--border)"}`,
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 500, color: isSelected ? "var(--sage)" : "var(--text-quiet)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: "6px" }}>
+                        {p.title}
+                        {isSelected && " ✓"}
+                      </div>
+                      <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "14.5px", fontWeight: 300, fontStyle: "italic", color: "var(--text)", lineHeight: 1.6, margin: "0 0 8px" }}>
+                        {p.story}
+                      </p>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11.5px", fontWeight: 300, color: "var(--text-quiet)", backgroundColor: "var(--bg)", borderRadius: "20px", padding: "3px 10px", border: "1px solid var(--border-light)" }}>
+                          feeling: {p.theirFeeling}
+                        </span>
+                        <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11.5px", fontWeight: 300, color: "var(--text-quiet)", backgroundColor: "var(--bg)", borderRadius: "20px", padding: "3px 10px", border: "1px solid var(--border-light)" }}>
+                          needing: {p.theirNeed}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Story in your head */}
+              <div style={{ marginBottom: "24px" }}>
+                <div style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "16px", fontWeight: 300, color: "var(--text)", marginBottom: "8px", lineHeight: 1.4 }}>
+                  what&apos;s the story in your head?
+                </div>
+                <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-quiet)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                  in one line — what do you think is really going on? (e.g. &ldquo;he doesn&apos;t respect my time&rdquo;)
+                </p>
+                <textarea
+                  value={myStory}
+                  onChange={(e) => setMyStory(e.target.value)}
+                  placeholder="the story in my head is..."
+                  rows={2}
+                  style={{
+                    width: "100%", padding: "14px",
+                    backgroundColor: "var(--surface)", border: "1px solid var(--border-light)",
+                    borderRadius: "12px", color: "var(--text)",
+                    fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                    fontSize: "14px", fontWeight: 300, lineHeight: 1.55,
+                    resize: "none", outline: "none", boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={handlePathwaysSubmit}
+                style={{
+                  width: "100%", padding: "14px 0", borderRadius: "14px",
+                  backgroundColor: "var(--ember)", border: "none", cursor: "pointer",
+                  color: "white", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                  fontSize: "14px", fontWeight: 500,
+                  boxShadow: "0 4px 20px rgba(224,120,64,0.3)",
+                }}
+              >
+                show me the clarity →
+              </button>
+            </div>
+          )}
+
+          {/* ── PHASE 6a: BREAKDOWN LOADING ── */}
           {phase === "breakdown_loading" && (
             <div className="animate-fade-in" style={{ padding: "60px 20px 0", textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
@@ -610,19 +770,14 @@ export default function ResolvePage() {
               <h2 style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "17px", fontWeight: 300, color: "var(--text)", margin: "0 0 8px" }}>
                 reflecting deeper...
               </h2>
-              <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginTop: "20px" }}>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "var(--ember)", animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
-                ))}
-              </div>
+              <LoadingDots />
             </div>
           )}
 
-          {/* ── PHASE 5b: FULL BREAKDOWN ── */}
+          {/* ── PHASE 6b: FULL BREAKDOWN ── */}
           {phase === "breakdown" && breakdown && (
             <div className="animate-fade-in" style={{ padding: "28px 20px 0" }}>
 
-              {/* Header */}
               <div style={{ textAlign: "center", marginBottom: "24px" }}>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: "14px" }}>
                   <Sprite src="/sprites/happy-removebg-preview.png" size={48} />
@@ -653,76 +808,118 @@ export default function ResolvePage() {
               </div>
 
               {/* Empathy map */}
-              <div style={{ backgroundColor: "rgba(139,126,166,0.10)", borderLeft: "2px solid rgba(139,126,166,0.33)", borderRadius: "14px", padding: "16px 18px", marginBottom: "20px" }}>
+              <div style={{ backgroundColor: "rgba(139,126,166,0.10)", borderLeft: "2px solid rgba(139,126,166,0.33)", borderRadius: "14px", padding: "16px 18px", marginBottom: "24px" }}>
                 {upperLabel(`what ${personName ?? "they"} might be experiencing`, "#8B7EA6")}
                 <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "14.5px", fontWeight: 300, fontStyle: "italic", color: "var(--text-soft)", lineHeight: 1.65, margin: 0 }}>
                   {breakdown.empathyMap}
                 </p>
               </div>
 
-              {/* Before / After */}
-              <div style={{ marginBottom: "20px" }}>
-                {upperLabel("what you said → NVC version")}
-                <div style={{ borderRadius: "12px", overflow: "hidden" }}>
-                  <div style={{ backgroundColor: "rgba(176,112,112,0.10)", borderLeft: "2px solid rgba(176,112,112,0.33)", padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
-                    <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11px", fontWeight: 500, color: "#B07070", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px" }}>
-                      your words
-                    </div>
-                    <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "14px", fontWeight: 300, color: "var(--text-soft)", lineHeight: 1.6, margin: 0 }}>
-                      {breakdown.beforeAfter.before}
-                    </p>
-                  </div>
-                  <div style={{ backgroundColor: "rgba(126,166,122,0.10)", borderLeft: "2px solid rgba(122,173,122,0.33)", padding: "14px 16px" }}>
-                    <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "11px", fontWeight: 500, color: "var(--sage)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px" }}>
-                      NVC version
-                    </div>
-                    <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "14px", fontWeight: 300, color: "var(--text)", lineHeight: 1.6, margin: 0 }}>
-                      {breakdown.beforeAfter.after}
-                    </p>
-                  </div>
-                </div>
+              {/* Action cards */}
+              <div style={{ marginBottom: "8px" }}>
+                {upperLabel("what do you want to do?")}
               </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "28px" }}>
 
-              {/* Draft message */}
-              <div style={{ backgroundColor: "var(--surface)", borderRadius: "14px", padding: "16px 18px", marginBottom: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                  {upperLabel(`ready to send to ${personName ?? "them"}`, "var(--ember)")}
-                  <CopyButton text={breakdown.draftMessage} />
-                </div>
-                <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "15px", fontWeight: 300, color: "var(--text)", lineHeight: 1.65, margin: 0 }}>
-                  {breakdown.draftMessage}
-                </p>
-              </div>
-
-              {/* Save prompt */}
-              <div style={{ backgroundColor: "rgba(240,192,96,0.08)", borderLeft: "2px solid rgba(240,192,96,0.22)", borderRadius: "14px", padding: "16px 18px", marginBottom: "24px" }}>
-                <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "14px", fontWeight: 300, color: "var(--text)", margin: "0 0 14px", lineHeight: 1.5 }}>
-                  {personName ? (
-                    <>save this to <strong style={{ fontWeight: 500 }}>{personName}</strong>&apos;s story?</>
-                  ) : (
-                    "save this resolution?"
+                {/* Card 1: Juan's check-in */}
+                <div style={{ backgroundColor: "var(--surface)", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--border)" }}>
+                  <button
+                    onClick={() => setExpandedAction(expandedAction === "checkin" ? null : "checkin")}
+                    style={{
+                      width: "100%", padding: "16px 18px", textAlign: "left", cursor: "pointer",
+                      background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "14px", fontWeight: 500, color: "var(--text)", marginBottom: "2px" }}>
+                        send a check-in
+                      </div>
+                      <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-quiet)" }}>
+                        a gentle opener — share your experience &amp; invite theirs
+                      </div>
+                    </div>
+                    <span style={{ color: "var(--text-faint)", fontSize: "16px", marginLeft: "12px" }}>{expandedAction === "checkin" ? "↑" : "↓"}</span>
+                  </button>
+                  {expandedAction === "checkin" && (
+                    <div style={{ padding: "0 18px 16px", borderTop: "1px solid var(--border-light)" }}>
+                      <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "15px", fontWeight: 300, color: "var(--text)", lineHeight: 1.65, margin: "14px 0 12px" }}>
+                        {breakdown.checkInMessage}
+                      </p>
+                      <CopyButton text={breakdown.checkInMessage} />
+                    </div>
                   )}
-                </p>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button
-                    onClick={handleSave}
-                    style={{ padding: "9px 18px", borderRadius: "12px", backgroundColor: "var(--ember)", border: "none", color: "white", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 500, cursor: "pointer" }}
-                  >
-                    yes — save it
-                  </button>
-                  <button
-                    onClick={handleSkip}
-                    style={{ padding: "9px 18px", borderRadius: "12px", backgroundColor: "none", border: "1px solid var(--border-light)", color: "var(--text-quiet)", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, cursor: "pointer" }}
-                  >
-                    keep it private
-                  </button>
                 </div>
-              </div>
 
+                {/* Card 2: Draft message */}
+                <div style={{ backgroundColor: "var(--surface)", borderRadius: "14px", overflow: "hidden", border: "1px solid var(--border)" }}>
+                  <button
+                    onClick={() => setExpandedAction(expandedAction === "draft" ? null : "draft")}
+                    style={{
+                      width: "100%", padding: "16px 18px", textAlign: "left", cursor: "pointer",
+                      background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "14px", fontWeight: 500, color: "var(--text)", marginBottom: "2px" }}>
+                        send the full message
+                      </div>
+                      <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-quiet)" }}>
+                        a complete NVC message with observation, feelings &amp; request
+                      </div>
+                    </div>
+                    <span style={{ color: "var(--text-faint)", fontSize: "16px", marginLeft: "12px" }}>{expandedAction === "draft" ? "↑" : "↓"}</span>
+                  </button>
+                  {expandedAction === "draft" && (
+                    <div style={{ padding: "0 18px 16px", borderTop: "1px solid var(--border-light)" }}>
+                      <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "15px", fontWeight: 300, color: "var(--text)", lineHeight: 1.65, margin: "14px 0 12px" }}>
+                        {breakdown.draftMessage}
+                      </p>
+                      <CopyButton text={breakdown.draftMessage} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Card 3: Freeze message */}
+                <Link href="/freeze" style={{ textDecoration: "none" }}>
+                  <div style={{ backgroundColor: "var(--surface)", borderRadius: "14px", padding: "16px 18px", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "14px", fontWeight: 500, color: "var(--text)", marginBottom: "2px" }}>
+                        not ready to reach out
+                      </div>
+                      <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-quiet)" }}>
+                        frozen? need space first? get help with that
+                      </div>
+                    </div>
+                    <span style={{ color: "var(--text-faint)", fontSize: "16px", marginLeft: "12px" }}>→</span>
+                  </div>
+                </Link>
+
+                {/* Card 4: Just save it */}
+                <button
+                  onClick={handleSave}
+                  style={{
+                    width: "100%", backgroundColor: "var(--surface)", borderRadius: "14px",
+                    padding: "16px 18px", border: "1px solid var(--border)",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    cursor: "pointer", textAlign: "left",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "14px", fontWeight: 500, color: "var(--text)", marginBottom: "2px" }}>
+                      just save it
+                    </div>
+                    <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-quiet)" }}>
+                      {personName ? `add to ${personName}'s story` : "save this resolution"} — no action needed right now
+                    </div>
+                  </div>
+                  <span style={{ color: "var(--text-faint)", fontSize: "16px", marginLeft: "12px" }}>↓</span>
+                </button>
+
+              </div>
             </div>
           )}
 
-          {/* ── PHASE 6: DONE ── */}
+          {/* ── PHASE 7: DONE ── */}
           {phase === "done" && (
             <div className="animate-fade-in" style={{ padding: "60px 20px 0", textAlign: "center" }}>
               <div style={{ fontSize: "28px", marginBottom: "20px" }}>

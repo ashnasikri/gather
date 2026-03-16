@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
-  const { rawVent, followUpAnswer, feelings, bodySensations, needs, personName } = await req.json()
+  const { rawVent, followUpAnswer, feelings, bodySensations, needs, personName, myStory, selectedPathway } = await req.json()
   if (!rawVent?.trim()) return NextResponse.json({ error: 'rawVent is required' }, { status: 400 })
   if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ error: 'no_api_key' }, { status: 503 })
 
@@ -18,6 +18,8 @@ Their chosen feelings: ${(feelings ?? []).join(', ')}
 Their body sensations: ${(bodySensations ?? []).join(', ')}
 Their chosen needs: ${(needs ?? []).join(', ')}
 Person involved: ${personName ?? 'unknown'}
+The story in the user's head: ${myStory ?? 'not provided'}
+The perspective they resonated with: ${selectedPathway ?? 'none selected'}
 
 Return ONLY valid JSON:
 {
@@ -31,10 +33,11 @@ Return ONLY valid JSON:
     "after": "The same sentiment in clean NVC language"
   },
   "draftMessage": "A ready-to-send message to the other person. Warm, honest, non-blaming. Uses NVC structure but sounds natural. Under 100 words. Starts with their name. Ends with invitation to talk.",
+  "checkInMessage": "A gentle check-in message using this exact structure: 'Hey [person's name or 'hey'], I wanted to check in with you about something. When [observation — what factually happened], I felt [feelings from their list]. What I needed was [needs from their list]. The story in my head was [myStory if provided, else a brief honest framing of user's perspective]. I'd love to hear how you experienced it — can we talk?' Keep it warm and conversational, not clinical.",
   "conflictType": "unmet_expectation" or "boundary_crossed" or "feeling_unseen" or "miscommunication" or "values_clash" or "recurring_pattern"
 }
 
-Guidelines for the draft message:
+Guidelines for draft message and check-in message:
 - Sound human, not therapeutic
 - Use "I" statements, not "you always..."
 - Keep it conversational — this is a text/DM, not a letter
