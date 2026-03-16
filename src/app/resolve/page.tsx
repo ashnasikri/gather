@@ -1250,9 +1250,9 @@ export default function ResolvePage() {
                       </button>
                     ))}
                   </div>
-                  {showBreathReady && (
-                    <div className="rl-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                      <button onClick={handleAcknowledgmentContinue} style={{
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                    {showBreathReady && (
+                      <button onClick={handleAcknowledgmentContinue} className="rl-fade" style={{
                         padding: "12px 28px", borderRadius: "22px", cursor: "pointer",
                         backgroundColor: "var(--ember)", border: "none",
                         fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
@@ -1260,11 +1260,16 @@ export default function ResolvePage() {
                       }}>
                         i&apos;m ready to go deeper
                       </button>
-                      <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-faint)", margin: 0 }}>
-                        or keep breathing — no rush
-                      </p>
-                    </div>
-                  )}
+                    )}
+                    <button onClick={handleAcknowledgmentContinue} style={{
+                      padding: "10px 24px", borderRadius: "22px", cursor: "pointer",
+                      background: "none", border: "1px solid var(--border-light)",
+                      fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                      fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)",
+                    }}>
+                      i&apos;m good — keep going
+                    </button>
+                  </div>
                 </>
               )}
             </div>
