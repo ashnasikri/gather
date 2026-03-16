@@ -5,9 +5,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const {
     personName, personId: providedPersonId,
-    rawVent, feelings, bodySensations, needs, conflictType,
+    rawVent, myStory,
+    feelings, bodySensations, needs,
+    disturbance, responsePattern,
+    conflictType,
     nvcObservation, nvcFeeling, nvcNeed, nvcRequest,
-    empathyMap, draftMessage,
+    empathyMap, draftMessage, checkInMessage,
+    chosenAction,
   } = body
 
   if (!rawVent?.trim()) return NextResponse.json({ error: 'rawVent is required' }, { status: 400 })
@@ -31,9 +35,12 @@ export async function POST(req: NextRequest) {
       person_id: personId,
       person_name: personName?.trim() ?? null,
       raw_vent: rawVent.trim(),
+      my_story: myStory ?? null,
       feelings: feelings ?? [],
       body_sensations: bodySensations ?? [],
       needs: needs ?? [],
+      disturbance: disturbance ?? null,
+      response_pattern: responsePattern ?? null,
       conflict_type: conflictType ?? null,
       nvc_observation: nvcObservation ?? null,
       nvc_feeling: nvcFeeling ?? null,
@@ -41,6 +48,8 @@ export async function POST(req: NextRequest) {
       nvc_request: nvcRequest ?? null,
       empathy_map: empathyMap ?? null,
       draft_message: draftMessage ?? null,
+      check_in_message: checkInMessage ?? null,
+      chosen_action: chosenAction ?? null,
     })
     .select()
     .single()
@@ -55,6 +64,7 @@ export async function POST(req: NextRequest) {
     const topFeelings = (feelings ?? []).slice(0, 2).join(', ')
     const topNeeds = (needs ?? []).slice(0, 2).join(', ')
     const summary = `processed tension${topFeelings ? ` — feeling ${topFeelings}` : ''}${topNeeds ? `. needing ${topNeeds}` : ''}.`
+    const energy = disturbance ? Math.max(10, Math.min(90, 100 - disturbance)) : 50
     const now = new Date()
     await supabase.from('encounters').insert({
       person_id: personId,
@@ -62,7 +72,7 @@ export async function POST(req: NextRequest) {
       date: now.toISOString().slice(0, 10),
       time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
       summary,
-      energy: 50,
+      energy,
       category: 'personal',
       source: 'text',
     })
