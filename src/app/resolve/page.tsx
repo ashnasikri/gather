@@ -11,14 +11,14 @@ type Phase =
   | "vent"
   | "reflecting"
   | "reflection"
-  | "acknowledgment"
-  | "breathing"
   | "picker"
+  | "acknowledgment"
   | "disturbance"
   | "pathways_loading"
   | "pathways"
   | "breakdown_loading"
   | "breakdown"
+  | "closing_breathe"
   | "done";
 
 type Intent = "process" | "talk" | "understand";
@@ -292,6 +292,33 @@ function EditableText({ value, onChange, textStyle }: {
   );
 }
 
+// ─── Acknowledgment helpers ──────────────────────────────────────────────────
+
+const BODY_SENSATION_PHRASES: Record<string, string> = {
+  "tight chest": "a tightness in your chest",
+  "racing heart": "a racing heart",
+  "shallow breathing": "shallow breathing",
+  "clenched jaw": "a clenched jaw",
+  "knot in stomach": "a knot in your stomach",
+  "lump in throat": "a lump in your throat",
+  "tension in shoulders": "tension in your shoulders",
+  "heaviness": "a heaviness",
+  "heat in face": "heat in your face",
+  "cold hands": "cold hands",
+  "restless legs": "restless legs",
+  "headache": "a headache",
+  "shaky": "shakiness",
+  "teary eyes": "teary eyes",
+  "nausea": "nausea",
+};
+
+function buildAckMessage(f: string[], b: string[]): string {
+  const bFormatted = b.map((s) => BODY_SENSATION_PHRASES[s] ?? s);
+  const allParts = [...f, ...bFormatted];
+  if (allParts.length === 0) return "that's a lot to carry. i'm glad you named it.";
+  return allParts.join(". ") + ". that's a lot to carry. i'm glad you named it.";
+}
+
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function ResolvePage() {
@@ -309,10 +336,11 @@ export default function ResolvePage() {
   const [reflect, setReflect] = useState<ReflectResult | null>(null);
   const [followUpAnswer, setFollowUpAnswer] = useState("");
 
-  // ── Phase 4: Acknowledgment ──
+  // ── Phase 5: Acknowledgment ──
   const [showAckButtons, setShowAckButtons] = useState(false);
+  const [ackBreathing, setAckBreathing] = useState(false);
 
-  // ── Phase 5: Breathing ──
+  // ── Breathing (shared between acknowledgment and closing_breathe) ──
   const [breathPatternKey, setBreathPatternKey] = useState<BreathPatternKey>("5-5");
   const [breathT, setBreathT] = useState(0);
 
@@ -357,12 +385,13 @@ export default function ResolvePage() {
     return () => clearTimeout(t);
   }, [phase]);
 
-  // ── Breathing interval ──
+  // ── Breathing interval (acknowledgment inline + closing_breathe) ──
   useEffect(() => {
-    if (phase !== "breathing") { setBreathT(0); return; }
+    const active = (phase === "acknowledgment" && ackBreathing) || phase === "closing_breathe";
+    if (!active) { setBreathT(0); return; }
     const t = setInterval(() => setBreathT((prev) => prev + 50), 50);
     return () => clearInterval(t);
-  }, [phase]);
+  }, [phase, ackBreathing]);
 
   // ── Auto-advance from pathways_loading when ready ──
   useEffect(() => {
@@ -413,6 +442,8 @@ export default function ResolvePage() {
     breathLabel = bPattern.hold2 > 0 ? "hold..." : "breathe in..."; breathLabelColor = "var(--text-quiet)";
   }
   const breathGuidance = bCycles < 3 ? "just follow the fire" : bCycles < 6 ? "you're doing good" : "stay as long as you need";
+  const breathReadyCycles = phase === "closing_breathe" ? 2 : 3;
+  const showBreathReady = bCycles >= breathReadyCycles;
 
   // ── Disturbance helpers ──
   function disturbanceLabel(d: number) {
@@ -472,7 +503,7 @@ export default function ResolvePage() {
   };
 
   const handleReflectionConfirm = () => {
-    setPhase("acknowledgment");
+    setPhase("picker");
     scrollTop();
   };
 
@@ -507,9 +538,17 @@ export default function ResolvePage() {
 
   const handlePickerSubmit = () => {
     if (feelings.length === 0 || needs.length === 0) return;
+    setAckBreathing(false);
+    setPhase("acknowledgment");
+    scrollTop();
+  };
+
+  const handleAcknowledgmentContinue = () => {
+    setAckBreathing(false);
+    setBreathT(0);
     setPathwaysReady(null);
     setPathwaysFetchError(false);
-    // Fire pathways fetch in background
+    // Fire pathways fetch in background while user is on disturbance screen
     const fn = ventPersonName.trim() || reflect?.personName || null;
     fetch("/api/resolve/pathways", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -661,14 +700,15 @@ export default function ResolvePage() {
       }),
     });
     setSaved(true);
-    setPhase("done");
+    setBreathT(0);
+    setPhase("closing_breathe");
     scrollTop();
   };
 
   const handleReset = () => {
     setPhase("vent"); setRawVent(""); setContextOpen(false); setVentPersonName("");
     setIntent(null); setResponsePattern(null); setReflect(null); setFollowUpAnswer("");
-    setShowAckButtons(false); setBreathT(0); setBreathPatternKey("5-5");
+    setShowAckButtons(false); setAckBreathing(false); setBreathT(0); setBreathPatternKey("5-5");
     setFeelings([]); setBodySensations([]); setNeeds([]);
     setDisturbance(50); setPathwaysReady(null); setPathwaysFetchError(false);
     setPathways([]); setSelectedPathway(null); setMyStory("");
@@ -915,106 +955,7 @@ export default function ResolvePage() {
             </div>
           )}
 
-          {/* ── PHASE 4: ACKNOWLEDGMENT ── */}
-          {phase === "acknowledgment" && reflect && (
-            <div className="rl-fade" style={{ padding: "48px 20px 0", textAlign: "center" }}>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: "28px" }}>
-                <Sprite src="/sprites/listening-removebg-preview.png" size={70} />
-              </div>
-
-              <p style={{
-                fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "18px", fontWeight: 300,
-                fontStyle: "italic", color: "var(--text)", lineHeight: 1.7,
-                margin: "0 auto 48px", maxWidth: "320px",
-              }}>
-                {reflect.acknowledgment}
-              </p>
-
-              {showAckButtons && (
-                <div className="rl-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                  <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)", margin: "0 0 4px" }}>
-                    want to breathe together before we go deeper?
-                  </p>
-                  <button
-                    onClick={() => { setPhase("breathing"); scrollTop(); }}
-                    style={{
-                      padding: "12px 28px", borderRadius: "22px", cursor: "pointer",
-                      backgroundColor: "var(--ember)", border: "none",
-                      fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-                      fontSize: "13.5px", fontWeight: 500, color: "white",
-                    }}
-                  >
-                    breathe with me
-                  </button>
-                  <button
-                    onClick={() => { setPhase("picker"); scrollTop(); }}
-                    style={{
-                      padding: "12px 28px", borderRadius: "22px", cursor: "pointer",
-                      background: "none", border: "1px solid var(--border-light)",
-                      fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-                      fontSize: "13.5px", fontWeight: 300, color: "var(--text-quiet)",
-                    }}
-                  >
-                    i&apos;m okay — let&apos;s keep going
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── PHASE 5: BREATHING ── */}
-          {phase === "breathing" && (
-            <div className="rl-fade" style={{ padding: "40px 20px 0", textAlign: "center" }}>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
-                <div style={{ transition: "transform 0.1s linear, opacity 0.1s linear", transform: `scale(${breathScale})`, opacity: breathOpacity }}>
-                  <Sprite src="/sprites/listening-removebg-preview.png" size={80} />
-                </div>
-              </div>
-
-              <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "20px", fontWeight: 300, color: breathLabelColor, margin: "0 0 8px", transition: "color 0.5s ease" }}>
-                {breathLabel}
-              </p>
-              <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-faint)", margin: "0 0 32px" }}>
-                {breathGuidance}
-              </p>
-
-              {/* Pattern selector */}
-              <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginBottom: "40px" }}>
-                {(["5-5", "4-4-4-4", "4-7-8"] as BreathPatternKey[]).map((k) => (
-                  <button key={k} onClick={() => { setBreathPatternKey(k); setBreathT(0); }} style={{
-                    padding: "5px 12px", borderRadius: "20px", cursor: "pointer",
-                    background: breathPatternKey === k ? "var(--surface)" : "none",
-                    border: `1px solid ${breathPatternKey === k ? "var(--border-light)" : "transparent"}`,
-                    fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-                    fontSize: "11px", fontWeight: 300, color: breathPatternKey === k ? "var(--text-quiet)" : "var(--text-faint)",
-                  }}>
-                    {BREATH_PATTERNS[k].label}
-                  </button>
-                ))}
-              </div>
-
-              {bCycles >= 3 && (
-                <div className="rl-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                  <button
-                    onClick={() => { setPhase("picker"); scrollTop(); }}
-                    style={{
-                      padding: "12px 28px", borderRadius: "22px", cursor: "pointer",
-                      backgroundColor: "var(--ember)", border: "none",
-                      fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
-                      fontSize: "13.5px", fontWeight: 500, color: "white",
-                    }}
-                  >
-                    i&apos;m ready to go deeper
-                  </button>
-                  <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-faint)", margin: 0 }}>
-                    or keep breathing — no rush
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── PHASE 6: PICKER ── */}
+          {/* ── PHASE 4: PICKER ── */}
           {phase === "picker" && reflect && (
             <div className="rl-fade" style={{ padding: "28px 20px 0" }}>
               <div style={{ textAlign: "center", marginBottom: "20px" }}>
@@ -1088,7 +1029,92 @@ export default function ResolvePage() {
             </div>
           )}
 
-          {/* ── PHASE 7: DISTURBANCE ── */}
+          {/* ── PHASE 5: ACKNOWLEDGE + BREATHE ── */}
+          {phase === "acknowledgment" && (
+            <div className="rl-fade" style={{ padding: "48px 20px 0", textAlign: "center" }}>
+              {!ackBreathing ? (
+                <>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
+                    <Sprite src="/sprites/listening-removebg-preview.png" size={70} />
+                  </div>
+                  <p style={{
+                    fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "18px", fontWeight: 300,
+                    fontStyle: "italic", color: "var(--text)", lineHeight: 1.75,
+                    margin: "0 auto 48px", maxWidth: "320px",
+                  }}>
+                    {buildAckMessage(feelings, bodySensations)}
+                  </p>
+                  {showAckButtons && (
+                    <div className="rl-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                      <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)", margin: "0 0 4px" }}>
+                        want to breathe together before we go deeper?
+                      </p>
+                      <button onClick={() => setAckBreathing(true)} style={{
+                        padding: "12px 28px", borderRadius: "22px", cursor: "pointer",
+                        backgroundColor: "var(--ember)", border: "none",
+                        fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                        fontSize: "13.5px", fontWeight: 500, color: "white",
+                      }}>
+                        breathe with me
+                      </button>
+                      <button onClick={handleAcknowledgmentContinue} style={{
+                        padding: "12px 28px", borderRadius: "22px", cursor: "pointer",
+                        background: "none", border: "1px solid var(--border-light)",
+                        fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                        fontSize: "13.5px", fontWeight: 300, color: "var(--text-quiet)",
+                      }}>
+                        i&apos;m okay — let&apos;s keep going
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
+                    <div style={{ transition: "transform 0.1s linear, opacity 0.1s linear", transform: `scale(${breathScale})`, opacity: breathOpacity }}>
+                      <Sprite src="/sprites/listening-removebg-preview.png" size={80} />
+                    </div>
+                  </div>
+                  <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "20px", fontWeight: 300, color: breathLabelColor, margin: "0 0 8px", transition: "color 0.5s ease" }}>
+                    {breathLabel}
+                  </p>
+                  <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-faint)", margin: "0 0 32px" }}>
+                    {breathGuidance}
+                  </p>
+                  <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginBottom: "40px" }}>
+                    {(["5-5", "4-4-4-4", "4-7-8"] as BreathPatternKey[]).map((k) => (
+                      <button key={k} onClick={() => { setBreathPatternKey(k); setBreathT(0); }} style={{
+                        padding: "5px 12px", borderRadius: "20px", cursor: "pointer",
+                        background: breathPatternKey === k ? "var(--surface)" : "none",
+                        border: `1px solid ${breathPatternKey === k ? "var(--border-light)" : "transparent"}`,
+                        fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                        fontSize: "11px", fontWeight: 300, color: breathPatternKey === k ? "var(--text-quiet)" : "var(--text-faint)",
+                      }}>
+                        {BREATH_PATTERNS[k].label}
+                      </button>
+                    ))}
+                  </div>
+                  {showBreathReady && (
+                    <div className="rl-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                      <button onClick={handleAcknowledgmentContinue} style={{
+                        padding: "12px 28px", borderRadius: "22px", cursor: "pointer",
+                        backgroundColor: "var(--ember)", border: "none",
+                        fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                        fontSize: "13.5px", fontWeight: 500, color: "white",
+                      }}>
+                        i&apos;m ready to go deeper
+                      </button>
+                      <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-faint)", margin: 0 }}>
+                        or keep breathing — no rush
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── PHASE 6: DISTURBANCE ── */}
           {phase === "disturbance" && (
             <div className="rl-fade" style={{ padding: "40px 20px 0" }}>
               <div style={{ textAlign: "center", marginBottom: "32px" }}>
@@ -1474,7 +1500,7 @@ export default function ResolvePage() {
                     }}>
                       yes — save it
                     </button>
-                    <button onClick={() => { setShowSavePrompt(false); setPhase("done"); scrollTop(); }} style={{
+                    <button onClick={() => { setShowSavePrompt(false); setBreathT(0); setPhase("closing_breathe"); scrollTop(); }} style={{
                       padding: "9px 18px", borderRadius: "12px", background: "none",
                       border: "1px solid var(--border-light)", color: "var(--text-quiet)",
                       fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, cursor: "pointer",
@@ -1485,6 +1511,66 @@ export default function ResolvePage() {
                 </div>
               )}
 
+            </div>
+          )}
+
+          {/* ── PHASE 9: CLOSING BREATHE ── */}
+          {phase === "closing_breathe" && (
+            <div className="rl-fade" style={{ padding: "48px 20px 0", textAlign: "center" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
+                <div style={{ transition: "transform 0.1s linear, opacity 0.1s linear", transform: `scale(${breathScale})`, opacity: breathOpacity }}>
+                  <Sprite src="/sprites/happy-removebg-preview.png" size={72} />
+                </div>
+              </div>
+
+              <h2 style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "18px", fontWeight: 300, color: "var(--text)", margin: "0 0 6px" }}>
+                want to settle before you go?
+              </h2>
+              <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)", margin: "0 0 20px" }}>
+                just a breath or two
+              </p>
+
+              <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "18px", fontWeight: 300, color: breathLabelColor, margin: "0 0 6px", transition: "color 0.5s ease" }}>
+                {breathLabel}
+              </p>
+              <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-faint)", margin: "0 0 28px" }}>
+                {breathGuidance}
+              </p>
+
+              <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginBottom: "36px" }}>
+                {(["5-5", "4-4-4-4", "4-7-8"] as BreathPatternKey[]).map((k) => (
+                  <button key={k} onClick={() => { setBreathPatternKey(k); setBreathT(0); }} style={{
+                    padding: "5px 12px", borderRadius: "20px", cursor: "pointer",
+                    background: breathPatternKey === k ? "var(--surface)" : "none",
+                    border: `1px solid ${breathPatternKey === k ? "var(--border-light)" : "transparent"}`,
+                    fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                    fontSize: "11px", fontWeight: 300, color: breathPatternKey === k ? "var(--text-quiet)" : "var(--text-faint)",
+                  }}>
+                    {BREATH_PATTERNS[k].label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                {showBreathReady && (
+                  <button onClick={() => { setPhase("done"); scrollTop(); }} className="rl-fade" style={{
+                    padding: "12px 28px", borderRadius: "22px", cursor: "pointer",
+                    backgroundColor: "var(--ember)", border: "none",
+                    fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                    fontSize: "13.5px", fontWeight: 500, color: "white",
+                  }}>
+                    i&apos;m settled
+                  </button>
+                )}
+                <button onClick={() => { setPhase("done"); scrollTop(); }} style={{
+                  padding: "10px 24px", borderRadius: "22px", cursor: "pointer",
+                  background: "none", border: "1px solid var(--border-light)",
+                  fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                  fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)",
+                }}>
+                  i&apos;m good
+                </button>
+              </div>
             </div>
           )}
 
