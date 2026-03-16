@@ -880,17 +880,17 @@ export default function ResolvePage() {
                 </div>
 
                 {/* Card 3: Freeze message */}
-                <Link href="/freeze" style={{ textDecoration: "none" }}>
+                <Link href="/freeze" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
                   <div style={{ backgroundColor: "var(--surface)", borderRadius: "14px", padding: "16px 18px", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
                       <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "14px", fontWeight: 500, color: "var(--text)", marginBottom: "2px" }}>
                         not ready to reach out
                       </div>
                       <div style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "12px", fontWeight: 300, color: "var(--text-quiet)" }}>
-                        frozen? need space first? get help with that
+                        frozen? need space first? opens in a new tab
                       </div>
                     </div>
-                    <span style={{ color: "var(--text-faint)", fontSize: "16px", marginLeft: "12px" }}>→</span>
+                    <span style={{ color: "var(--text-faint)", fontSize: "16px", marginLeft: "12px" }}>↗</span>
                   </div>
                 </Link>
 
