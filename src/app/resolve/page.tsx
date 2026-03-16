@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import PasswordGate from "@/components/PasswordGate";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -378,6 +379,96 @@ export default function ResolvePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTop = useCallback(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), []);
 
+  // ── Navigation / persistence ──
+  const router = useRouter();
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [showLeaveGuard, setShowLeaveGuard] = useState(false);
+  const phaseRef = useRef<Phase>(phase);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+
+  const SESSION_KEY = "gather_resolve_state";
+
+  const clearSession = useCallback(() => {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+  }, []);
+
+  // Auto-save on phase transitions
+  useEffect(() => {
+    if (phase === "vent") return;
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        phase, rawVent, ventPersonName, intent, responsePattern,
+        reflect, followUpAnswer, ackBreathing, breathPatternKey,
+        feelings, bodySensations, needs, disturbance,
+        pathways, selectedPathway, myStory,
+        breakdown, bObs, bFeel, bNeed, bReq, bEmpathy, bCheckin, bDraft, bFreeze,
+        expandedAction, saved,
+      }));
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // On mount: check for saved session
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s?.phase && s.phase !== "vent" && s.phase !== "done") {
+        setShowRestorePrompt(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Browser back button guard
+  useEffect(() => {
+    history.pushState(null, "", window.location.pathname);
+    const handler = () => {
+      if (phaseRef.current !== "vent" && phaseRef.current !== "done") {
+        history.pushState(null, "", window.location.pathname);
+        setShowLeaveGuard(true);
+      }
+    };
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
+
+  const handleRestoreSession = () => {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) { setShowRestorePrompt(false); return; }
+      const s = JSON.parse(raw);
+      if (s.rawVent) setRawVent(s.rawVent);
+      if (s.ventPersonName) setVentPersonName(s.ventPersonName);
+      if (s.intent) setIntent(s.intent);
+      if (s.responsePattern) setResponsePattern(s.responsePattern);
+      if (s.reflect) setReflect(s.reflect);
+      if (s.followUpAnswer) setFollowUpAnswer(s.followUpAnswer);
+      if (s.ackBreathing !== undefined) setAckBreathing(s.ackBreathing);
+      if (s.breathPatternKey) setBreathPatternKey(s.breathPatternKey);
+      if (s.feelings) setFeelings(s.feelings);
+      if (s.bodySensations) setBodySensations(s.bodySensations);
+      if (s.needs) setNeeds(s.needs);
+      if (s.disturbance !== undefined) setDisturbance(s.disturbance);
+      if (s.pathways) setPathways(s.pathways);
+      if (s.selectedPathway !== undefined) setSelectedPathway(s.selectedPathway);
+      if (s.myStory) setMyStory(s.myStory);
+      if (s.breakdown) setBreakdown(s.breakdown);
+      if (s.bObs) setBObs(s.bObs);
+      if (s.bFeel) setBFeel(s.bFeel);
+      if (s.bNeed) setBNeed(s.bNeed);
+      if (s.bReq) setBReq(s.bReq);
+      if (s.bEmpathy) setBEmpathy(s.bEmpathy);
+      if (s.bCheckin) setBCheckin(s.bCheckin);
+      if (s.bDraft) setBDraft(s.bDraft);
+      if (s.bFreeze) setBFreeze(s.bFreeze);
+      if (s.expandedAction) setExpandedAction(s.expandedAction);
+      if (s.saved !== undefined) setSaved(s.saved);
+      if (s.phase) setPhase(s.phase);
+    } catch { /* ignore */ }
+    setShowRestorePrompt(false);
+  };
+
   // ── Acknowledgment 3-second delay ──
   useEffect(() => {
     if (phase !== "acknowledgment") { setShowAckButtons(false); return; }
@@ -699,6 +790,7 @@ export default function ResolvePage() {
         chosenAction,
       }),
     });
+    clearSession();
     setSaved(true);
     setBreathT(0);
     setPhase("closing_breathe");
@@ -706,6 +798,7 @@ export default function ResolvePage() {
   };
 
   const handleReset = () => {
+    clearSession();
     setPhase("vent"); setRawVent(""); setContextOpen(false); setVentPersonName("");
     setIntent(null); setResponsePattern(null); setReflect(null); setFollowUpAnswer("");
     setShowAckButtons(false); setAckBreathing(false); setBreathT(0); setBreathPatternKey("5-5");
@@ -735,15 +828,78 @@ export default function ResolvePage() {
       <main style={{ maxWidth: "430px", margin: "0 auto", minHeight: "100dvh", backgroundColor: "var(--bg)" }}>
         <div ref={scrollRef} style={{ overflowY: "auto", minHeight: "100dvh", paddingBottom: "60px" }}>
 
-          {/* Back */}
+          {/* Back / leave guard */}
           <div style={{ padding: "20px 20px 0" }}>
-            <Link href="/" style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-soft)", textDecoration: "none" }}>
-              ← back to the fire
-            </Link>
+            {showLeaveGuard ? (
+              <div className="rl-fade" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)" }}>
+                  you&apos;ve started processing something. leave?
+                </span>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button onClick={() => setShowLeaveGuard(false)} style={{
+                    padding: "5px 14px", borderRadius: "10px", cursor: "pointer",
+                    background: "var(--sage-soft)", border: "1px solid rgba(122,173,122,0.44)",
+                    fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                    fontSize: "12px", color: "var(--sage)", fontWeight: 500,
+                  }}>stay</button>
+                  <button onClick={() => router.push("/")} style={{
+                    padding: "5px 14px", borderRadius: "10px", cursor: "pointer",
+                    background: "none", border: "1px solid var(--border-light)",
+                    fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                    fontSize: "12px", color: "var(--text-quiet)",
+                  }}>leave</button>
+                </div>
+              </div>
+            ) : phase === "vent" || phase === "done" ? (
+              <Link href="/" style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-soft)", textDecoration: "none" }}>
+                ← back to the fire
+              </Link>
+            ) : (
+              <button onClick={() => setShowLeaveGuard(true)} style={{
+                background: "none", border: "none", padding: 0, cursor: "pointer",
+                fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                fontSize: "13px", fontWeight: 300, color: "var(--text-soft)",
+              }}>
+                ← back to the fire
+              </button>
+            )}
           </div>
 
+          {/* ── RESTORE PROMPT ── */}
+          {showRestorePrompt && (
+            <div className="rl-fade" style={{ padding: "48px 20px 0", textAlign: "center" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+                <Sprite src="/sprites/listening-removebg-preview.png" size={52} />
+              </div>
+              <p style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: "18px", fontWeight: 300, color: "var(--text)", margin: "0 0 6px", lineHeight: 1.4 }}>
+                looks like you were in the middle of something.
+              </p>
+              <p style={{ fontFamily: "var(--font-dm-sans), -apple-system, sans-serif", fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)", margin: "0 0 28px" }}>
+                want to pick up where you left off?
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <button onClick={handleRestoreSession} style={{
+                  width: "100%", padding: "14px 0", borderRadius: "14px",
+                  backgroundColor: "var(--ember)", border: "none", cursor: "pointer",
+                  color: "white", fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                  fontSize: "14px", fontWeight: 500,
+                }}>
+                  pick up where i left off
+                </button>
+                <button onClick={() => { clearSession(); setShowRestorePrompt(false); }} style={{
+                  width: "100%", padding: "12px 0", borderRadius: "14px",
+                  background: "none", border: "1px solid var(--border-light)", cursor: "pointer",
+                  fontFamily: "var(--font-dm-sans), -apple-system, sans-serif",
+                  fontSize: "13px", fontWeight: 300, color: "var(--text-quiet)",
+                }}>
+                  start fresh
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── PHASE 1: VENT ── */}
-          {phase === "vent" && (
+          {!showRestorePrompt && phase === "vent" && (
             <div className="rl-fade" style={{ padding: "28px 20px 0" }}>
               <div style={{ textAlign: "center", marginBottom: "24px" }}>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
@@ -889,7 +1045,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 2: REFLECTING ── */}
-          {phase === "reflecting" && (
+          {!showRestorePrompt && phase === "reflecting" && (
             <div className="rl-fade" style={{ padding: "60px 20px 0", textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
                 <Sprite src="/sprites/thinking-removebg-preview.png" size={60} />
@@ -905,7 +1061,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 3: REFLECTION + FEEDBACK ── */}
-          {phase === "reflection" && reflect && (
+          {!showRestorePrompt && phase === "reflection" && reflect && (
             <div className="rl-fade" style={{ padding: "28px 20px 0" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
                 <Sprite src="/sprites/listening-removebg-preview.png" size={48} />
@@ -956,7 +1112,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 4: PICKER ── */}
-          {phase === "picker" && reflect && (
+          {!showRestorePrompt && phase === "picker" && reflect && (
             <div className="rl-fade" style={{ padding: "28px 20px 0" }}>
               <div style={{ textAlign: "center", marginBottom: "20px" }}>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
@@ -1030,7 +1186,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 5: ACKNOWLEDGE + BREATHE ── */}
-          {phase === "acknowledgment" && (
+          {!showRestorePrompt && phase === "acknowledgment" && (
             <div className="rl-fade" style={{ padding: "48px 20px 0", textAlign: "center" }}>
               {!ackBreathing ? (
                 <>
@@ -1115,7 +1271,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 6: DISTURBANCE ── */}
-          {phase === "disturbance" && (
+          {!showRestorePrompt && phase === "disturbance" && (
             <div className="rl-fade" style={{ padding: "40px 20px 0" }}>
               <div style={{ textAlign: "center", marginBottom: "32px" }}>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
@@ -1174,7 +1330,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PATHWAYS LOADING ── */}
-          {phase === "pathways_loading" && (
+          {!showRestorePrompt && phase === "pathways_loading" && (
             <div className="rl-fade" style={{ padding: "60px 20px 0", textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
                 <Sprite src="/sprites/thinking-removebg-preview.png" size={60} />
@@ -1190,7 +1346,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 8: PATHWAYS + YOUR STORY ── */}
-          {phase === "pathways" && (
+          {!showRestorePrompt && phase === "pathways" && (
             <div className="rl-fade" style={{ padding: "28px 20px 0" }}>
               <div style={{ textAlign: "center", marginBottom: "24px" }}>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
@@ -1284,7 +1440,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── BREAKDOWN LOADING ── */}
-          {phase === "breakdown_loading" && (
+          {!showRestorePrompt && phase === "breakdown_loading" && (
             <div className="rl-fade" style={{ padding: "60px 20px 0", textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
                 <Sprite src="/sprites/thinking-removebg-preview.png" size={60} />
@@ -1297,7 +1453,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 9: BREAKDOWN + ACTIONS ── */}
-          {phase === "breakdown" && breakdown && (
+          {!showRestorePrompt && phase === "breakdown" && breakdown && (
             <div className="rl-fade" style={{ padding: "28px 20px 0" }}>
 
               <div style={{ textAlign: "center", marginBottom: "24px" }}>
@@ -1515,7 +1671,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 9: CLOSING BREATHE ── */}
-          {phase === "closing_breathe" && (
+          {!showRestorePrompt && phase === "closing_breathe" && (
             <div className="rl-fade" style={{ padding: "48px 20px 0", textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
                 <div style={{ transition: "transform 0.1s linear, opacity 0.1s linear", transform: `scale(${breathScale})`, opacity: breathOpacity }}>
@@ -1575,7 +1731,7 @@ export default function ResolvePage() {
           )}
 
           {/* ── PHASE 10: DONE ── */}
-          {phase === "done" && (
+          {!showRestorePrompt && phase === "done" && (
             <div className="rl-fade" style={{ padding: "60px 20px 0", textAlign: "center" }}>
               <div style={{ fontSize: "28px", marginBottom: "20px" }}>
                 <span className="animate-float" style={{ display: "inline-block" }}>🔥</span>
